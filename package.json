@@ -4,11 +4,17 @@
   "description": "Chess bot for Lichess.",
   "main": "index.js",
   "scripts": {
+    "build": "node-gyp rebuild",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Thaigun/GreyPawnChess.git"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "*"
   },
   "keywords": [
     "node",

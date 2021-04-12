@@ -1,3 +1,9 @@
+#### Custom git ignores
+
+build/
+
+#### General Node.js project git ignores
+
 # Logs
 logs
 *.log
