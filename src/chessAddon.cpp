@@ -36,7 +36,8 @@ public:
 	}
 
 private:
-	Napi::Value UpdateGameState(const Napi::CallbackInfo& info) {
+	Napi::Value UpdateGameState(const Napi::CallbackInfo& info) 
+	{
 		return Napi::Number::New(info.Env(), ++callCount);
 	}
 
@@ -55,30 +56,26 @@ private:
 
 		//solverThread = std::thread(&GreyPawnChess::startGame, &game);
 		solverThread = std::thread([this] {
-			auto callback = [](Napi::Env env, Napi::Function jsCallback, int* value) {
+			auto callback = [](Napi::Env env, Napi::Function jsCallback, std::string* value) {
 				// Transform native data into JS data, passing it to the provided
 				// `jsCallback` -- the TSFN's JavaScript function.
-				jsCallback.Call( {Napi::Number::New( env, *value )} );
+				jsCallback.Call({Napi::String::New(env, *value)});
 
 				// We're finished with the data.
 				delete value;
 			};
 
-			for ( int i = 0; i < 5; i++ )
-			{
-				// Create new data
-				int* value = new int( clock() );
-
+			game.setMoveCallback([this, callback](std::string &move) {
+				std::string *moveParam = new std::string(move);
 				// Perform a blocking call
-				napi_status status = tsfn.BlockingCall( value, callback );
+				napi_status status = tsfn.BlockingCall(moveParam, callback);
 				if ( status != napi_ok )
 				{
 					// Handle error
-					break;
 				}
+			});
 
-				std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
-			}
+			game.startGame();
 
 			// Release the thread-safe function
 			tsfn.Release();

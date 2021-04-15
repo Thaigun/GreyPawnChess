@@ -16,6 +16,8 @@ match.startGame(function(move) {
     console.log(move);
 }); // starts calculating the best moves and calling the callback
 
+console.log("started game");
+
 //console.log(match.updateGameState(/*d.body.moves, d.body.wtime, d.body.btime, d.body.status*/));
 
 
@@ -25,3 +27,5 @@ match2.startGame(function(move) {
     console.log('move was made:');
     console.log(move);
 });
+
+console.log("started another game");
