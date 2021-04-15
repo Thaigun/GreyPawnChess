@@ -18,7 +18,8 @@ public:
 		Napi::Function func =
 			DefineClass(env, "GreyPawnChess", {
 				InstanceMethod("updateGameState", &GreyPawnChessAddon::UpdateGameState),
-				InstanceMethod("startGame", &GreyPawnChessAddon::StartGame)
+				InstanceMethod("startGame", &GreyPawnChessAddon::StartGame),
+				InstanceMethod("stopGame", &GreyPawnChessAddon::StopGame)
 			});
 
 		Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -48,14 +49,14 @@ private:
 			info[0].As<Napi::Function>(),
 			"threadedSolveFunction",
 			0,
-			1,
-			[this](Napi::Env) {
-				solverThread.join();
-			}
+			1
 		);
 
+		moveCallBack = std::bind(&GreyPawnChessAddon::CallMoveCallback, this, std::placeholders::_1);
+		game.setMoveCallback(moveCallBack);
+		game.startGame();
 		//solverThread = std::thread(&GreyPawnChess::startGame, &game);
-		solverThread = std::thread([this] {
+		/*solverThread = std::thread([this] {
 			auto callback = [](Napi::Env env, Napi::Function jsCallback, std::string* value) {
 				// Transform native data into JS data, passing it to the provided
 				// `jsCallback` -- the TSFN's JavaScript function.
@@ -79,19 +80,41 @@ private:
 
 			// Release the thread-safe function
 			tsfn.Release();
-		});
+		});*/
 
 		return Napi::Number::New(info.Env(), ++callCount);
 	}
 
-	void CallMoveCallback(std::string move)
+	Napi::Value StopGame(const Napi::CallbackInfo& info) 
 	{
-		cbRef.Call({Napi::String::New(cbRef.Env(), move)});
+		game.stopGame();
+		tsfn.Release();
+		return Napi::Boolean::New(info.Env(), true);
 	}
-	Napi::FunctionReference cbRef;
+
+	void CallMoveCallback(const std::string& move)
+	{
+		static auto callback = [](Napi::Env env, Napi::Function jsCallback, std::string* value) {
+			// Transform native data into JS data, passing it to the provided
+			// `jsCallback` -- the TSFN's JavaScript function.
+			jsCallback.Call({Napi::String::New(env, *value)});
+
+			// We're finished with the data.
+			delete value;
+		};
+
+		std::string *moveParam = new std::string(move);
+		// Perform a blocking call
+		napi_status status = tsfn.BlockingCall(moveParam, callback);
+		if ( status != napi_ok )
+		{
+			// Handle error
+		}
+	}
+
+	std::function<void(const std::string&)> moveCallBack;
 	// This will be used by the worker thread to call the JS side callback.
 	Napi::ThreadSafeFunction tsfn;
-
 	std::thread solverThread;
 	int callCount = 0;
 

@@ -29,3 +29,9 @@ match2.startGame(function(move) {
 });
 
 console.log("started another game");
+
+setTimeout(() =>  {
+    console.log("delayed log");
+    match.stopGame();
+    match2.stopGame();
+}, 10);
