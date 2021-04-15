@@ -1,6 +1,8 @@
 #### Custom git ignores
 
 build/
+launch.json
+.vscode/
 
 #### General Node.js project git ignores
 
