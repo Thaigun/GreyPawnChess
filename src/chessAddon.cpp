@@ -4,6 +4,11 @@
 #include <thread>
 #include "GreyPawnChess.h"
 
+/**
+ * Middleware code to connect Node.js to the C++ chess engine. Purpose and goal of this
+ * file is to wrap all Node API code in one place and to be able to develop the chess engine
+ * independently without having to deal with any of that.
+ */
 
 class GreyPawnChessAddon : public Napi::ObjectWrap<GreyPawnChessAddon> {
 public:
@@ -13,6 +18,7 @@ public:
 		// Parse constructor parameters here if needed.
 	}
 
+	// Used for initializing the Node addon.
 	static Napi::Object Init(Napi::Env env, Napi::Object exports) 
 	{
 		Napi::Function func =
@@ -37,12 +43,15 @@ public:
 	}
 
 private:
-	Napi::Value UpdateGameState(const Napi::CallbackInfo& info) 
+	// Forwards server updates to the engine.
+	void UpdateGameState(const Napi::CallbackInfo& info) 
 	{
-		return Napi::Number::New(info.Env(), ++callCount);
+		
 	}
 
-	Napi::Value StartGame(const Napi::CallbackInfo& info) 
+	// Starts the engine calculations. It will run on a separate thread on the engine side
+	// and call the given callback whenever it wants to make a move.
+	void StartGame(const Napi::CallbackInfo& info) 
 	{
 		tsfn = Napi::ThreadSafeFunction::New(
 			info.Env(),
@@ -52,72 +61,53 @@ private:
 			1
 		);
 
-		moveCallBack = std::bind(&GreyPawnChessAddon::CallMoveCallback, this, std::placeholders::_1);
-		game.setMoveCallback(moveCallBack);
+		game.setMoveCallback(std::bind(
+			&GreyPawnChessAddon::HandleEngineMove,
+			this, 
+			std::placeholders::_1
+		));
 		game.startGame();
-		//solverThread = std::thread(&GreyPawnChess::startGame, &game);
-		/*solverThread = std::thread([this] {
-			auto callback = [](Napi::Env env, Napi::Function jsCallback, std::string* value) {
-				// Transform native data into JS data, passing it to the provided
-				// `jsCallback` -- the TSFN's JavaScript function.
-				jsCallback.Call({Napi::String::New(env, *value)});
-
-				// We're finished with the data.
-				delete value;
-			};
-
-			game.setMoveCallback([this, callback](std::string &move) {
-				std::string *moveParam = new std::string(move);
-				// Perform a blocking call
-				napi_status status = tsfn.BlockingCall(moveParam, callback);
-				if ( status != napi_ok )
-				{
-					// Handle error
-				}
-			});
-
-			game.startGame();
-
-			// Release the thread-safe function
-			tsfn.Release();
-		});*/
-
-		return Napi::Number::New(info.Env(), ++callCount);
 	}
 
-	Napi::Value StopGame(const Napi::CallbackInfo& info) 
+	// Signals the game that it should stop and waits for it to stop.
+	void StopGame(const Napi::CallbackInfo& info) 
 	{
 		game.stopGame();
 		tsfn.Release();
-		return Napi::Boolean::New(info.Env(), true);
 	}
 
-	void CallMoveCallback(const std::string& move)
+	// Calls the JS callback.
+	void CallMoveCallback(Napi::Env env, Napi::Function jsCallback, std::string* value)
 	{
-		static auto callback = [](Napi::Env env, Napi::Function jsCallback, std::string* value) {
-			// Transform native data into JS data, passing it to the provided
-			// `jsCallback` -- the TSFN's JavaScript function.
-			jsCallback.Call({Napi::String::New(env, *value)});
+		jsCallback.Call({Napi::String::New(env, *value)});
+		delete value;
+	}
 
-			// We're finished with the data.
-			delete value;
-		};
-
-		std::string *moveParam = new std::string(move);
+	// This callback should be called by the engine when it wants to make a move.
+	void HandleEngineMove(const std::string& move)
+	{
+		std::string* moveStr = new std::string(move);
 		// Perform a blocking call
-		napi_status status = tsfn.BlockingCall(moveParam, callback);
-		if ( status != napi_ok )
+		napi_status status = tsfn.BlockingCall(
+			moveStr,
+		 	std::bind(
+				&GreyPawnChessAddon::CallMoveCallback, 
+				this, 
+				std::placeholders::_1, 
+				std::placeholders::_2, 
+				std::placeholders::_3
+			)
+		);
+		if (status != napi_ok)
 		{
-			// Handle error
+			// TODO: Handle error
 		}
 	}
 
-	std::function<void(const std::string&)> moveCallBack;
-	// This will be used by the worker thread to call the JS side callback.
+	// Thread safe reference to the JS callback function.
 	Napi::ThreadSafeFunction tsfn;
-	std::thread solverThread;
-	int callCount = 0;
 
+	// The actual engine game.
 	GreyPawnChess game;
 };
 

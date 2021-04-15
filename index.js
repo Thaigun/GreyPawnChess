@@ -34,4 +34,4 @@ setTimeout(() =>  {
     console.log("delayed log");
     match.stopGame();
     match2.stopGame();
-}, 10);
+}, 5000);

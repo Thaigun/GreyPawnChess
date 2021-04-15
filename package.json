@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node-gyp rebuild -j max",
     "build:debug": "node-gyp rebuild --debug",
-    "start": "node index.js",
+    "nodestart": "node index.js",
+    "start": "node-gyp rebuild -j max && node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
