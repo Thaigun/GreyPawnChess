@@ -1,6 +1,40 @@
+#pragma once
+
+#include <vector>
+
+// Reference of these status codes as of 15.4.2021: 
+// https://github.com/ornicar/scalachess/blob/0a7d6f2c63b1ca06cd3c958ed3264e738af5c5f6/src/main/scala/Status.scala#L16-L28
+enum GameStatus 
+{
+    CREATED = 10,
+    STARTED = 20,
+    // From this point the game is finished
+    ABORTED = 25,
+    MATE    = 30,
+    RESIGN  = 31,
+    STALEMATE = 32,
+    TIMEOUT = 33,
+    DRAW    = 34,
+    OUTOFTIME = 35,
+    CHEAT   = 36,
+    NOSTART = 37,
+    UNKNOWN_FINISH = 38,
+    VARIANT_END = 60
+};
+
+enum Color 
+{
+    WHITE, BLACK
+};
+
 struct GameState 
 {
-    float timeLeftWhite;
-    float timeLeftBlack;
-    // etc...
+    // milliseconds left for black and white.
+    int wTime;
+    int bTime;
+    int wIncrement;
+    int bIncrement;
+    GameStatus status;
+    Color winner;
+    std::vector<std::string> moves;
 };
