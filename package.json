@@ -15,7 +15,9 @@
     "url": "git+https://github.com/Thaigun/GreyPawnChess.git"
   },
   "dependencies": {
+    "axios": "^0.21.1",
     "bindings": "^1.5.0",
+    "ndjson": "^2.0.0",
     "node-addon-api": "*"
   },
   "keywords": [

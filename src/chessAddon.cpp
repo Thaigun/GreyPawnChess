@@ -23,6 +23,7 @@ public:
 	{
 		Napi::Function func =
 			DefineClass(env, "GreyPawnChess", {
+				InstanceMethod("setup", &GreyPawnChessAddon::SetupGame),
 				InstanceMethod("updateGameState", &GreyPawnChessAddon::UpdateGameState),
 				InstanceMethod("startGame", &GreyPawnChessAddon::StartGame),
 				InstanceMethod("stopGame", &GreyPawnChessAddon::StopGame)
@@ -43,6 +44,11 @@ public:
 	}
 
 private:
+	void SetupGame(const Napi::CallbackInfo& info)
+	{
+		// Parse the inputs and forward to the game.setup().
+	}
+
 	// Forwards server updates to the engine.
 	void UpdateGameState(const Napi::CallbackInfo& info) 
 	{
