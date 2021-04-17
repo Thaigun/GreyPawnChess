@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include "GreyPawnChess.h"
+#include "GameState.h"
 
 /**
  * Middleware code to connect Node.js to the C++ chess engine. Purpose and goal of this
@@ -63,7 +64,65 @@ private:
 	void UpdateGameState(const Napi::CallbackInfo& info) 
 	{
 		Napi::Object stateObj = info[0].As<Napi::Object>();
-		
+		Napi::Value movesVal = stateObj.Get("moves");
+		Napi::Value wTimeMs = stateObj.Get("wtime");
+		Napi::Value bTimeMs = stateObj.Get("btime");
+		Napi::Value wIncMs = stateObj.Get("winc");
+		Napi::Value bIncMs = stateObj.Get("binc");
+		Napi::Value statusVal = stateObj.Get("status");
+		Napi::Value winnerVal = stateObj.Get("winner");
+
+		std::string statusString = (std::string)statusVal.As<Napi::String>();
+		GameStatus status;
+		if (statusString.compare("created"))
+			status = GameStatus::CREATED;
+		else if (statusString.compare("started"))
+			status = GameStatus::STARTED;
+		else if (statusString.compare("aborted"))
+			status = GameStatus::ABORTED;
+		else if (statusString.compare("mate"))
+			status = GameStatus::MATE;
+		else if (statusString.compare("resign"))
+			status = GameStatus::RESIGN;
+		else if (statusString.compare("staleMate"))
+			status = GameStatus::STALEMATE;
+		else if (statusString.compare("timeout"))
+			status = GameStatus::TIMEOUT;
+		else if (statusString.compare("draw"))
+			status = GameStatus::DRAW;
+		else if (statusString.compare("outOfTime"))
+			status = GameStatus::OUTOFTIME;
+		else if (statusString.compare("cheat"))
+			status = GameStatus::CHEAT;
+		else if (statusString.compare("noStart"))
+			status = GameStatus::NOSTART;
+		else if (statusString.compare("unknownfinish"))
+			status = GameStatus::UNKNOWN_FINISH;
+		else if (statusString.compare("variantEnd"))
+			status = GameStatus::VARIANT_END;
+
+		Color winnerColor;
+		if (winnerVal.IsUndefined())
+		{
+			winnerColor = Color::NONE;
+		}
+		else
+		{
+			std::string winnerString = (std::string)winnerVal.As<Napi::String>();
+			winnerColor = winnerString.front() == 'w' ? Color::WHITE : Color::BLACK;
+		}
+
+		std::string movesString = (std::string)movesVal.As<Napi::String>();
+
+		GameState state(
+			wTimeMs.As<Napi::Number>().Int32Value(),
+			bTimeMs.As<Napi::Number>().Int32Value(),
+			wIncMs.As<Napi::Number>().Int32Value(),
+			bIncMs.As<Napi::Number>().Int32Value(),
+			status,
+			winnerColor,
+			movesString
+		);
 	}
 
 	// Starts the engine calculations. It will run on a separate thread on the engine side

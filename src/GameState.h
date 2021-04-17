@@ -32,6 +32,8 @@ struct GameState
 {
     GameState() = default;
     GameState(int timeMs, int incrementMs);
+    GameState(int whiteTime, int blackTime, int whiteIncrement, int blackIncrement, 
+        GameStatus gameStatus, Color winnerCol, std::string& movesUpdate);
     
     bool finishedStatus();
 
@@ -41,6 +43,6 @@ struct GameState
     int wIncrement;
     int bIncrement;
     GameStatus status;
-    Color winner = NONE;
+    Color winner = Color::NONE;
     std::vector<std::string> moves;
 };
