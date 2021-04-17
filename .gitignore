@@ -3,6 +3,7 @@
 build/
 launch.json
 .vscode/
+lichess.config
 
 #### General Node.js project git ignores
 
