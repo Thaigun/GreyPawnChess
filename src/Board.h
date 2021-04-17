@@ -14,6 +14,7 @@ public:
 private:
     char getSquareIndex(const char* sqr);
     Square getSquare(const char* sqr);
+    Square getSquare(char file, char rank);
     void setSquare(const char* sqr, Square data);
     void setSquare(char sqr, Square data);
 

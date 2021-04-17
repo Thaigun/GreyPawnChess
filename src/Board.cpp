@@ -11,14 +11,18 @@ bool Board::checkMoveLegality(const std::string& move)
 
 std::vector<std::string> Board::findAllTargetsForSquare(char square)
 {
+    std::vector<std::string> targets;
     Square data = squares[square];
     char rank = square / 8;
     char file = square % 8;
+    // TODO: Implement possible piece movements.
     if (!!(data & Square::PAWN))
     {
-        char potentialTargets[3] = {
-
-        };
+        char nextRank = !!(data & Square::WHITE) ? rank + 1 : rank - 1;
+        if (nextRank > 7 || nextRank < 0)
+        {
+            return targets;
+        }
     }
     else if (!!(data & Square::KNIGHT))
     {
@@ -40,9 +44,7 @@ std::vector<std::string> Board::findAllTargetsForSquare(char square)
     {
         
     }
-    
-    // TODO: Implement
-    return std::vector<std::string>();
+    return targets;
 }
 
 void Board::findLegalMovesForSquare(char square, std::vector<std::string> &moveList)
@@ -304,7 +306,7 @@ char Board::getSquareIndex(const char* sqr)
     // char 'a' equals to 97, followed by 'b'=97, 'c'=99...
     char file = sqr[0] - (char)97;
     // char '0' equals to 48, followed by '1'=49, '2'=50...
-    char rank = sqr[1] - (char)48;
+    char rank = sqr[1] - (char)49;
     return 8 * rank + file;
 }
 
@@ -321,4 +323,9 @@ void Board::setSquare(char sqr, Square data)
 Square Board::getSquare(const char* sqr)
 {
     return squares[getSquareIndex(sqr)];
+}
+
+Square Board::getSquare(char file, char rank)
+{
+    return squares[8 * rank + file];
 }
