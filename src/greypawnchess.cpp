@@ -9,9 +9,12 @@
 
 #define MTX_LOCK std::unique_lock<std::mutex> lock(mtx);
 
-void GreyPawnChess::setup(char color, float timeSeconds, float incrementSeconds, const std::string& variant) 
+void GreyPawnChess::setup(char color, int timeMs, int incrementMs, const std::string& variant) 
 {
-
+    MTX_LOCK
+    myColor = color == 'w' ? WHITE : BLACK;
+    gameState = GameState(timeMs, incrementMs);
+    this->variant = variant;
 }
 
 void GreyPawnChess::startGame()
@@ -24,17 +27,17 @@ void GreyPawnChess::startGame()
         // Check if the match is still running.
         while (running) 
         {
-            float v = 0.0f;
-            // Calculate the best move based on current game state.
-            for (int i = 0; i < 1000000000; i++) {
-                if (i % 2) {
-                    v += 1;
-                }
-                if (i % 3 == 0) {
-                    v /= 2;
-                }
+            Color currentPlayer;
+            {
+                MTX_LOCK;
+                currentPlayer = playerInTurn();
             }
-            // Post the best move to the callback.
+            if (currentPlayer != myColor)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
+            
             moveCallback(std::string("e2e4"));
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -54,12 +57,28 @@ void GreyPawnChess::stopGame()
     workThread.join();
 }
 
-void GreyPawnChess::updateGameState(GameState state)
+void GreyPawnChess::updateGameState(GameState newState)
 {
-
+    MTX_LOCK
+    gameState = newState;
+    stateSetTime = std::chrono::system_clock::now();
 }
 
 void GreyPawnChess::setMoveCallback(std::function<void(const std::string&)> cb)
 {
+    MTX_LOCK
     moveCallback = cb;
+}
+
+Duration GreyPawnChess::timeSinceStateSet() 
+{
+    return std::chrono::system_clock::now() - stateSetTime;
+}
+
+Color GreyPawnChess::playerInTurn() 
+{
+    if (gameState.finishedStatus())
+        return NONE;
+
+    return gameState.moves.size() % 2 == 0 ? WHITE : BLACK;
 }

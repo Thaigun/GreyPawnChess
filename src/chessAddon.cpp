@@ -1,6 +1,7 @@
 #include "napi.h"
 
 #include <chrono>
+#include <string>
 #include <thread>
 #include "GreyPawnChess.h"
 
@@ -46,12 +47,22 @@ public:
 private:
 	void SetupGame(const Napi::CallbackInfo& info)
 	{
+		// Called like this: setup(myColor, msg.clock.initial, msg.clock.increment, msg.variant.key)
 		// Parse the inputs and forward to the game.setup().
+		Napi::String color = info[0].As<Napi::String>();
+		Napi::Number initialClock = info[1].As<Napi::Number>();
+		Napi::Number incrementClock = info[2].As<Napi::Number>();
+		Napi::String variant = info[3].As<Napi::String>();
+		
+		std::string colorStr = (std::string)color;
+
+		game.setup(colorStr.front(), initialClock.Int32Value(), incrementClock.Int32Value(), (std::string)variant);
 	}
 
 	// Forwards server updates to the engine.
 	void UpdateGameState(const Napi::CallbackInfo& info) 
 	{
+		Napi::Object stateObj = info[0].As<Napi::Object>();
 		
 	}
 
