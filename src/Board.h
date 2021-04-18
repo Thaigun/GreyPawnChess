@@ -4,9 +4,8 @@
 #include <vector>
 
 #include "GameState.h"
+#include "Move.h"
 #include "Piece.h"
-
-struct Move;
 
 class Board 
 {

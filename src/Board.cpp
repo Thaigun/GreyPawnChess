@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "BoardFuncs.h"
-#include "Move.h"
 
 std::vector<Move> Board::findPossibleMoves()
 {
@@ -18,14 +17,16 @@ std::vector<Move> Board::findPossibleMoves()
 
 void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) 
 {
-    std::vector<Move> pseudoMoves = findPseudoLegalMoves(square);
+    std::vector<Move> pseudoMoves = findPseudoLegalMoves(square, playerInTurn);
     for (Move move : pseudoMoves)
     {
         Board testBoard(*this);
         testBoard.applyMove(move);
         // Check if the current player in turn is in check if the move was applied.
         // TODO: Check castling moves.
-        if (!testBoard.isThreatened(playerInTurn))
+        // TODO: Find the king square.
+        char kingSquare = 0;
+        if (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn))
         {
             moveList.push_back(move);
         }
@@ -181,7 +182,8 @@ std::vector<Move> Board::findPseudoKingMoves(char square, Color player)
         MoveDirection::SW,
         MoveDirection::NW
     };
-    return findDirectionalPseudoMoves(square, directions, 1);
+    std::vector<Move> moves = findDirectionalPseudoMoves(square, directions, 1);
+    return moves;
 }
 
 std::vector<Move> Board::findPseudoBishopMoves(char square, Color player)

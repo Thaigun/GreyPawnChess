@@ -137,7 +137,6 @@ function handleGameUpdate(msg) {
                     myColor = 'b';
                 }
                 // Get time control, increments and variant.
-                // TODO: Setup properly
                 ongoingGame.game.setup(myColor, msg.clock.initial, msg.clock.increment, msg.variant.key);
                 ongoingGame.setupDone = true;
                 ongoingGame.game.startGame((move) => {
