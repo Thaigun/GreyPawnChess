@@ -1,318 +1,194 @@
 #include "Board.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <utility>
 
-bool Board::checkMoveLegality(const std::string& move)
+#include "BoardFuncs.h"
+#include "Move.h"
+
+Move Board::constructPromotionMove(const std::string& moveUCI)
 {
-    // TODO: Implement
-    return true;
+    const char* moveStr = moveUCI.c_str();
+    const char firstSquareIdx = BoardFuncs::getSquareIndex(moveStr);
+    const char secondSquareIdx = BoardFuncs::getSquareIndex(&moveStr[2]);
+    Move move = {
+        { firstSquareIdx, -1 },
+        { secondSquareIdx, -1 }
+    };
+    switch (moveStr[4])
+    {
+        case 'q':
+            move.promotion = Piece::QUEEN;
+            break;
+        case 'b':
+            move.promotion = Piece::BISHOP;
+            break;
+        case 'n':
+            move.promotion = Piece::KNIGHT;
+            break;
+        case 'r':
+            move.promotion = Piece::ROOK;
+            break;
+        default:
+            move.promotion = Piece::QUEEN;
+            break;    
+    }
+    return move;
 }
 
-std::vector<std::string> Board::findAllTargetsForSquare(char square)
+Move Board::constructCastlingMove(char firstSquare, char secondSquare)
 {
-    std::vector<std::string> targets;
-    Piece data = pieces[square];
-    char rank = square / 8;
-    char file = square % 8;
-    // TODO: Implement possible piece movements.
-    if (!!(data & Piece::PAWN))
-    {
-        char nextRank = !!(data & Piece::WHITE) ? rank + 1 : rank - 1;
-        if (nextRank > 7 || nextRank < 0)
-        {
-            return targets;
-        }
-    }
-    else if (!!(data & Piece::KNIGHT))
-    {
-
-    }
-    else if (!!(data & Piece::BISHOP))
-    {
-
-    }
-    else if (!!(data & Piece::ROOK))
-    {
-        
-    }
-    else if (!!(data & Piece::QUEEN))
-    {
-        
-    }
-    else if (!!(data & Piece::KING))
-    {
-        
-    }
-    return targets;
+    char rank = playerInTurn == Color::WHITE ? 0 : 7;
+    char rookFile = firstSquare > secondSquare ? queenRookFile : kingRookFile;
+    char rookSquare = 8 * rank + rookFile;
+    char kingTargetFile = firstSquare < secondSquare ? 6 : 2;
+    char rookTargetFile = firstSquare < secondSquare ? 5 : 3;
+    Move move = {
+        {firstSquare, rookSquare},
+        {8 * rank + kingTargetFile, 8 * rank + rookTargetFile}
+    };
+    return move;
 }
 
-void Board::findLegalMovesForSquare(char square, std::vector<std::string> &moveList)
+Move Board::constructMove(const std::string& moveUCI)
 {
-    std::vector<std::string> unfilteredMoves = findAllTargetsForSquare(square);
-    for (const std::string& move : unfilteredMoves)
+    assert(moveUCI.size() >= 4);
+
+    if (moveUCI.size() >= 5)
     {
-        if (checkMoveLegality(move))
-        {
-            moveList.push_back(move);
-        }
+        return constructPromotionMove(moveUCI);
     }
+
+    const char* moveStr = moveUCI.c_str();
+    const char firstSquareIdx = BoardFuncs::getSquareIndex(moveStr);
+    const char secondSquareIdx = BoardFuncs::getSquareIndex(&moveStr[2]);
+    const Piece firstSquareData = pieces[firstSquareIdx];
+    const Piece secondSquareData = pieces[secondSquareIdx];
+    bool sameColor = !!(firstSquareData & secondSquareData & Piece::COLOR_MASK);
+    bool kingMove = !!(firstSquareData & Piece::KING);
+    bool normalCastling = kingMove && std::abs(firstSquareIdx - secondSquareIdx) == 2;
+    if (normalCastling || (sameColor && kingMove))
+    {
+        return constructCastlingMove(firstSquareIdx, secondSquareIdx);
+    }
+    Move move = {
+        {firstSquareIdx, -1},
+        {secondSquareIdx, -1}
+    };
+    return move;
 }
 
-std::vector<std::string> Board::findPossibleMoves() 
+void Board::applyMove(const Move& move) 
 {
-    std::vector<std::string> foundMoves;
-    for (char sqr = 0; sqr < 63; sqr++)
+    // Reset, it will be set again if needed
+    enPassant = -1;
+
+    // In 960, the king might be moving where the rook is at the moment. For this reason,
+    // we store both pieces before moving anything, to not lose the piece data.
+    Piece movePieces[2];
+    for (int i = 0; i < 2; i++)
     {
-        findLegalMovesForSquare(sqr, foundMoves);
+        char from = move.from[i];
+        char to = move.to[i];
+        if (from < 0 || to < 0)
+            continue;
+
+        movePieces[i] = pieces[from];
     }
-}
-    
-void Board::applyMove(const std::string& move) 
-{
-    assert(move.size() >= 4);
-    const char* moveStr = move.c_str();
 
-    const char firstSquareIdx = getSquareIndex(moveStr);
-    const char secondSquareIdx = getSquareIndex(&moveStr[2]);
-    const Piece firstSquareData = getSquare(moveStr);
-    const Piece secondSquareData = getSquare(&moveStr[2]);
-    Piece newSquareData = firstSquareData;
-
-    // Handle potential promotion
-    if (!!(firstSquareData & Piece::PAWN))
+    for (int i = 0; i < 2; i++)
     {
-        const char promotionRank = !!(firstSquareData & Piece::WHITE) ? 0 : 7;
-        const char pawnRank = secondSquareIdx / 8;
-        if (promotionRank == pawnRank) 
+        char from = move.from[i];
+        char to = move.to[i];
+        if (from < 0 || to < 0)
+            continue;
+
+        Piece movePiece = movePieces[i];
+        // Prepare potential promotion
+        if (move.promotion != Piece::NONE)
         {
-            assert(move.size() >= 5);
-            newSquareData &= ~Piece::PAWN;
-            switch (move[4]) 
+            // Keep the color but change the piece type.
+            movePiece = (Piece::COLOR_MASK & movePiece) | move.promotion;
+        }
+
+        // Update en passant square
+        if (!!(movePiece & Piece::PAWN))
+        {
+            // Moved to ranks to either direction?
+            if (std::abs(from - to) == (char)16)
             {
-                case 'q':
-                    newSquareData |= Piece::QUEEN;
-                    break;
-                case 'r':
-                    newSquareData |= Piece::ROOK;
-                    break;
-                case 'n':
-                    newSquareData |= Piece::KNIGHT;
-                    break;
-                case 'b':
-                    newSquareData |= Piece::BISHOP;
-                    break;
-                default:
-                    newSquareData |= Piece::QUEEN;
-                    break;
+                // En passant square is between from and to.
+                enPassant = (from + to) / 2;
             }
         }
+        pieces[from] = Piece::NONE;
+        pieces[to] = movePiece;
     }
 
-    // Handle castling
-    bool castles = false;
-    if (!!(firstSquareData & Piece::KING)) 
-    {
-        // Normally, king moving from the original position to the castling square means castling. 
-        if (!!(firstSquareData & Piece::WHITE))
-        {
-            if (firstSquareIdx == getSquareIndex("e1")) 
-            {
-                if (secondSquareIdx == getSquareIndex("g1"))
-                {
-                    // White castles king side
-                    castles = true;
-                    Piece rookSquare = getSquare("h1");
-                    setSquare("h1", Piece::NONE);
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, newSquareData);
-                    setSquare("f1", rookSquare);
-                }
-                else if (secondSquareIdx == getSquareIndex("c1"))
-                {
-                    // White castles queen side
-                    castles = true;
-                    Piece rookSquare = getSquare("a1");
-                    setSquare("a1", Piece::NONE);
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, newSquareData);
-                    setSquare("d1", rookSquare);
-                }
-            }
-        }
-        if (!!(firstSquareData & Piece::BLACK))
-        {
-            if (firstSquareIdx == getSquareIndex("e8")) 
-            {
-                if (secondSquareIdx == getSquareIndex("g8"))
-                {
-                    // Black castles king side
-                    castles = true;
-                    Piece rookSquare = getSquare("h8");
-                    setSquare("h8", Piece::NONE);
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, newSquareData);
-                    setSquare("f8", rookSquare);
-                }
-                else if (secondSquareIdx == getSquareIndex("c8"))
-                {
-                    // Black castles queen side
-                    castles = true;
-                    Piece rookSquare = getSquare("a8");
-                    setSquare("a8", Piece::NONE);
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, newSquareData);
-                    setSquare("d8", rookSquare);
-                }
-            }
-        }
-
-        // In Fischer960 variation castling is denoted by a king taking his own rook.
-        if (!!(secondSquareData & Piece::ROOK))
-        {
-            if (!!(firstSquareData & Piece::WHITE) && !!(secondSquareData & Piece::WHITE))
-            {
-                if (secondSquareIdx % 8 > firstSquareIdx % 8)
-                {
-                    // White castles king side
-                    castles = true;
-                    Piece rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, Piece::NONE);
-                    setSquare("g1", newSquareData);
-                    setSquare("f1", rookSquare);
-                }
-                else if (secondSquareIdx % 8 < firstSquareIdx % 8)
-                {
-                    // White castles queen side
-                    castles = true;
-                    Piece rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, Piece::NONE);
-                    setSquare("c1", newSquareData);
-                    setSquare("d1", rookSquare);
-                }
-            }
-            if (!!(firstSquareData & Piece::BLACK) && !!(secondSquareData & Piece::BLACK))
-            {
-                if (secondSquareIdx % 8 > firstSquareIdx % 8)
-                {
-                    // Black castles king side
-                    castles = true;
-                    Piece rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, Piece::NONE);
-                    setSquare("g8", newSquareData);
-                    setSquare("f8", rookSquare);
-                }
-                else if (secondSquareIdx % 8 < firstSquareIdx % 8)
-                {
-                    // Black castles queen side
-                    castles = true;
-                    Piece rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Piece::NONE);
-                    setSquare(secondSquareIdx, Piece::NONE);
-                    setSquare("c8", newSquareData);
-                    setSquare("d8", rookSquare);
-                }
-            }
-        }
-    }
-
-    if (!castles)
-    {
-        setSquare(secondSquareIdx, newSquareData);
-        setSquare(firstSquareIdx, Piece::NONE);
-    }
-    
-    // Mark changes in ability to castle.
-    if (!!(firstSquareData & Piece::KING))
-    {
-        if (!!(firstSquareData & Piece::WHITE))
-        {
-            whiteCanCastleKing = false;
-            whiteCanCastleQueen = false;
-        }
-        if (!!(firstSquareData & Piece::BLACK)) 
-        {
-            blackCanCastleKing = false;
-            blackCanCastleQueen = false;
-        }
-    }
-
-    if (!!(firstSquareData & Piece::ROOK))
-    {
-        // If the rook was on its starting square and has now moved, cannot castle that side anymore
-        if (!!(firstSquareData & Piece::WHITE))
-        {
-            char whiteQRookStartIdx = queenRookFile;
-            char whiteKRookStartIdx = kingRookFile;
-            if (firstSquareIdx == whiteQRookStartIdx)
-                whiteCanCastleQueen = false;
-            else if (firstSquareIdx == whiteKRookStartIdx)
-                whiteCanCastleKing = false;
-        }
-        else if (!!(firstSquareData & Piece::BLACK))
-        {
-            char blackQRookStartIdx = 8 * 7 + queenRookFile;
-            char blackKRookStartIdx = 8 * 7 + kingRookFile;
-            if (firstSquareIdx == blackQRookStartIdx)
-                blackCanCastleQueen = false;
-            else if (firstSquareIdx == blackKRookStartIdx)
-                blackCanCastleKing = false;
-        }
-    }
-    if (!!(secondSquareData & Piece::ROOK))
-    {
-        // If a rook that was on its starting square is taken, we cannot castle that side anymore
-        if (!!(secondSquareData & Piece::WHITE))
-        {
-            char whiteQRookStartIdx = queenRookFile;
-            char whiteKRookStartIdx = kingRookFile;
-            if (secondSquareIdx == whiteQRookStartIdx)
-                whiteCanCastleQueen = false;
-            else if (secondSquareIdx == whiteKRookStartIdx)
-                whiteCanCastleKing = false;
-        }
-        else if (!!(secondSquareData & Piece::BLACK))
-        {
-            char blackQRookStartIdx = 8 * 7 + queenRookFile;
-            char blackKRookStartIdx = 8 * 7 + kingRookFile;
-            if (secondSquareIdx == blackQRookStartIdx)
-                blackCanCastleQueen = false;
-            else if (secondSquareIdx == blackKRookStartIdx)
-                blackCanCastleKing = false;
-        }
-    }
-
-    // Update en passant possiblity
-    enPassant = -1; // Disable by default, enable if needed.
-    if (!!(firstSquareData & Piece::PAWN))
-    {
-        // For white pieces, the square in front is 8 indices ahead, for black it's -8.
-        char rankForwardOffset = !!(firstSquareData & Piece::WHITE) ? 8 : -8;
-        if (secondSquareIdx == firstSquareIdx + 2 * rankForwardOffset) 
-        {
-            enPassant = firstSquareIdx + rankForwardOffset;
-        }
-    }
+    updateCastlingRights(playerInTurn);
 
     // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
 }
 
-char Board::getSquareIndex(const char* sqr)
+void Board::updateCastlingRights(Color color)
 {
-    // char 'a' equals to 97, followed by 'b'=97, 'c'=99...
-    char file = sqr[0] - (char)97;
-    // char '0' equals to 48, followed by '1'=49, '2'=50...
-    char rank = sqr[1] - (char)49;
-    return 8 * rank + file;
+    // Update for white
+    if (color == Color::WHITE)
+    {
+        if (whiteCanCastleQueen)
+        {
+            char qRookOrigSquare = queenRookFile;
+            if (pieces[qRookOrigSquare] != (Piece::WHITE | Piece::ROOK))
+                whiteCanCastleQueen = false;
+        }
+        if (whiteCanCastleKing)
+        {
+            char kRookOrigSquare = kingRookFile;
+            if (pieces[kRookOrigSquare] != (Piece::WHITE | Piece::ROOK))
+                whiteCanCastleKing = false;
+        }
+        if (whiteCanCastleKing || whiteCanCastleQueen)
+        {
+            char origKingSquare = kingStartFile;
+            if (pieces[origKingSquare] != (Piece::WHITE | Piece::KING))
+            {
+                whiteCanCastleKing = false;
+                whiteCanCastleQueen = false;
+            }
+        }
+    }
+    // Update for black
+    if (color == Color::BLACK)
+    {
+        if (blackCanCastleQueen)
+        {
+            char qRookOrigSquare = queenRookFile;
+            if (pieces[qRookOrigSquare] != (Piece::BLACK | Piece::ROOK))
+                blackCanCastleQueen = false;
+        }
+        if (blackCanCastleKing)
+        {
+            char kRookOrigSquare = kingRookFile;
+            if (pieces[kRookOrigSquare] != (Piece::BLACK | Piece::ROOK))
+                blackCanCastleKing = false;
+        }
+        if (blackCanCastleKing || blackCanCastleQueen)
+        {
+            char origKingSquare = kingStartFile;
+            if (pieces[origKingSquare] != (Piece::BLACK | Piece::KING))
+            {
+                blackCanCastleKing = false;
+                blackCanCastleQueen = false;
+            }
+        }
+    }
 }
 
 void Board::setSquare(const char* sqr, Piece data)
 {
-    pieces[getSquareIndex(sqr)] = data;
+    pieces[BoardFuncs::getSquareIndex(sqr)] = data;
 }
 
 void Board::setSquare(char sqr, Piece data)
@@ -322,7 +198,7 @@ void Board::setSquare(char sqr, Piece data)
 
 Piece Board::getSquare(const char* sqr)
 {
-    return pieces[getSquareIndex(sqr)];
+    return pieces[BoardFuncs::getSquareIndex(sqr)];
 }
 
 Piece Board::getSquare(char file, char rank)

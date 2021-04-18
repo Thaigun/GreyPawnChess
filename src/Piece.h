@@ -12,7 +12,8 @@ enum class Piece : uint16_t
     QUEEN = 1 << 4,
     KING = 1 << 5,
     WHITE = 1 << 6,
-    BLACK = 1 << 7
+    BLACK = 1 << 7,
+    COLOR_MASK = WHITE | BLACK
 };
 
 constexpr enum Piece operator|(const Piece a, const Piece b) 
