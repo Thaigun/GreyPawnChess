@@ -7,15 +7,274 @@
 #include "BoardFuncs.h"
 #include "Move.h"
 
+std::vector<Move> Board::findPossibleMoves()
+{
+    std::vector<Move> moves;
+    for (char sqr = 0; sqr < (char)64; sqr++)
+    {
+        findLegalMovesForSquare(sqr, moves);
+    }
+}
+
+void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) 
+{
+    std::vector<Move> pseudoMoves = findPseudoLegalMoves(square);
+    for (Move move : pseudoMoves)
+    {
+        Board testBoard(*this);
+        testBoard.applyMove(move);
+        // Check if the current player in turn is in check if the move was applied.
+        // TODO: Check castling moves.
+        if (!testBoard.isThreatened(playerInTurn))
+        {
+            moveList.push_back(move);
+        }
+    }
+}
+
+bool Board::areSameColor(Piece p1, Piece p2)
+{
+    return !!(p1 & p2 & Piece::COLOR_MASK);
+}
+
+char Board::stepSquareInDirection(char square, MoveDirection direction)
+{
+    // Direction offsets are like this:
+    // 7  8  9
+    //-1  1  1
+    //-9 -8 -7
+    char file = square % 8;
+    char rank = square / 8;
+    // Would go through the left edge.
+    if (file == 0 && (char(direction) + 1) % 8 == 0)
+        return -1;
+
+    // Would go through the left edge.
+    if (file == 7 && (char(direction) - 1) % 8 == 0)
+        return -1;
+
+    // Check the bottom edge.
+    if (rank == 0 && char(direction) < -1)
+        return -1;
+
+    // Check the top edge.
+    if (rank == 7 && char(direction) > 1)
+        return -1;
+
+    return square + char(direction);
+}
+
+std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes)
+{
+    char file = square % 8;
+    char rank = square / 8;
+    char nextRank = player == Color::WHITE ? rank + 1 : rank - 1;
+    bool promotion = nextRank == 7 || nextRank == 0;
+    std::vector<Move> moves;
+
+    assert(square < 7 * 8 && square >= 8 && "Pawn is never on the last rank.");
+
+    if (!onlyTakes && getSquare(file, nextRank) == Piece::NONE)
+    {
+        char nextSquareIdx = nextRank * 8 + file;
+        if (promotion)
+        {
+            moves.push_back(Move(square, nextSquareIdx, Piece::QUEEN));
+            moves.push_back(Move(square, nextSquareIdx, Piece::KNIGHT));
+            moves.push_back(Move(square, nextSquareIdx, Piece::ROOK));
+            moves.push_back(Move(square, nextSquareIdx, Piece::BISHOP));
+        }
+        else 
+        {
+            moves.push_back(Move(square, nextSquareIdx));
+        }
+    }
+    MoveDirection attackDirections[2];
+    attackDirections[0] = player == Color::WHITE ? MoveDirection::NW : MoveDirection :: SW;
+    attackDirections[1] = player == Color::WHITE ? MoveDirection::NE : MoveDirection :: SE;
+    for (int i = 0; i < 2; i++)
+    {
+        MoveDirection dir = attackDirections[i];
+        char attackSquare = stepSquareInDirection(square, dir);
+        if (attackSquare == -1)
+            continue;
+        if (enPassant == attackSquare || 
+            (pieces[attackSquare] != Piece::NONE && !areSameColor(pieces[square], pieces[attackSquare])))
+        {
+            if (promotion)
+            {
+                moves.push_back(Move(square, attackSquare, Piece::QUEEN));
+                moves.push_back(Move(square, attackSquare, Piece::KNIGHT));
+                moves.push_back(Move(square, attackSquare, Piece::ROOK));
+                moves.push_back(Move(square, attackSquare, Piece::BISHOP));
+            }
+            else 
+            {
+                moves.push_back(Move(square, attackSquare));
+            }
+        }
+    }   
+    return moves; 
+}
+
+std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps)
+{
+    int stepsLeft = maxSteps;
+    std::vector<Move> moves;
+    for (MoveDirection dir : directions) 
+    {
+        char nextSquare = stepSquareInDirection(square, dir);
+        while (nextSquare != -1 && maxSteps-- > 0)
+        {
+            if (pieces[nextSquare] == Piece::NONE) 
+            {
+                moves.push_back(Move(square, nextSquare));
+                nextSquare = stepSquareInDirection(nextSquare, dir);
+                continue;
+            }
+            if (!areSameColor(pieces[square], pieces[nextSquare]))
+            {
+                moves.push_back(Move(square, nextSquare));
+            }
+            break;
+        }
+    }
+    return moves;
+}
+
+std::vector<Move> Board::findPseudoRookMoves(char square, Color player)
+{
+    std::vector<MoveDirection> directions {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W
+    };
+    return findDirectionalPseudoMoves(square, directions);
+}
+
+std::vector<Move> Board::findPseudoQueenMoves(char square, Color player)
+{
+    std::vector<MoveDirection> directions {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W,
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    return findDirectionalPseudoMoves(square, directions);
+}
+
+std::vector<Move> Board::findPseudoKingMoves(char square, Color player)
+{
+    // TODO: Find castling moves too.
+    std::vector<MoveDirection> directions {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W,
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    return findDirectionalPseudoMoves(square, directions, 1);
+}
+
+std::vector<Move> Board::findPseudoBishopMoves(char square, Color player)
+{
+    std::vector<MoveDirection> directions {
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    return findDirectionalPseudoMoves(square, directions);    
+}
+
+std::vector<Move> Board::findPseudoKnightMoves(char square, Color player)
+{
+    std::vector<Move> moves;
+    char rank = square % 8;
+    char file = square / 8;
+    char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
+    char fileOffsets[8] = { -2,-1,1,2, 2, 1,-1,-2 };
+    for (int i = 0; i < 8; i++)
+    {
+        char moveRank = rank + rankOffsets[i];
+        char moveFile = file + fileOffsets[i];
+        if (moveRank > 7 || moveRank < 0 || moveFile < 0 || moveFile > 7)
+            continue;
+        
+        char moveSquare = 8 * moveRank + moveFile;
+        Piece targetSquarePiece = pieces[moveSquare];
+        if (targetSquarePiece == Piece::NONE || areSameColor(pieces[square], targetSquarePiece))
+            moves.push_back(Move(square, moveSquare));
+    }
+}
+
+std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes)
+{
+    std::vector<Move> moves;
+    Piece piece = pieces[square];
+    Piece currentPlayer = forPlayer == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    if (!(piece & currentPlayer))
+    {
+        return moves;
+    }
+    
+    if (!!(piece & Piece::PAWN))
+    {
+        return findPseudoPawnMoves(square, playerInTurn, pawnOnlyTakes);
+    }
+    else if (!!(piece & Piece::ROOK))
+    {
+        return findPseudoRookMoves(square, playerInTurn);
+    }
+    else if (!!(piece & Piece::QUEEN))
+    {
+        return findPseudoQueenMoves(square, playerInTurn);
+    }
+    else if (!!(piece & Piece::KING))
+    {
+        return findPseudoKingMoves(square, playerInTurn);
+    }
+    else if (!!(piece & Piece::BISHOP))
+    {
+        return findPseudoBishopMoves(square, playerInTurn);
+    }
+    else if (!!(piece & Piece::KNIGHT))
+    {
+        return findPseudoKnightMoves(square, playerInTurn);
+    }
+    return moves;
+}
+
+bool Board::isThreatened(char square, Color byPlayer)
+{
+    Piece targetPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
+    // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
+    for (char i = 0; i < 64; i++)
+    {
+        std::vector<Move> moves = findPseudoLegalMoves(i, byPlayer, true);
+        for (const Move& move : moves)
+        {
+            if (move.to[0] == square)
+                return true;
+        }
+    }
+    return false;
+}
+
 Move Board::constructPromotionMove(const std::string& moveUCI)
 {
     const char* moveStr = moveUCI.c_str();
     const char firstSquareIdx = BoardFuncs::getSquareIndex(moveStr);
     const char secondSquareIdx = BoardFuncs::getSquareIndex(&moveStr[2]);
-    Move move = {
-        { firstSquareIdx, -1 },
-        { secondSquareIdx, -1 }
-    };
+    Move move(firstSquareIdx, secondSquareIdx);
     switch (moveStr[4])
     {
         case 'q':
@@ -44,10 +303,7 @@ Move Board::constructCastlingMove(char firstSquare, char secondSquare)
     char rookSquare = 8 * rank + rookFile;
     char kingTargetFile = firstSquare < secondSquare ? 6 : 2;
     char rookTargetFile = firstSquare < secondSquare ? 5 : 3;
-    Move move = {
-        {firstSquare, rookSquare},
-        {8 * rank + kingTargetFile, 8 * rank + rookTargetFile}
-    };
+    Move move(firstSquare, 8 * rank + kingTargetFile, rookSquare, 8 * rank + rookTargetFile);
     return move;
 }
 
@@ -72,10 +328,7 @@ Move Board::constructMove(const std::string& moveUCI)
     {
         return constructCastlingMove(firstSquareIdx, secondSquareIdx);
     }
-    Move move = {
-        {firstSquareIdx, -1},
-        {secondSquareIdx, -1}
-    };
+    Move move(firstSquareIdx, secondSquareIdx);
     return move;
 }
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Piece.h"
 
 enum class MoveDirection : char
@@ -8,6 +10,10 @@ enum class MoveDirection : char
 
 struct Move
 {
+    Move(char from, char to);
+    Move(char from1, char to1, char from2, char to2);
+    Move(char from, char to, Piece prom);
+    
     char from[2];
     char to[2];
     Piece promotion = Piece::NONE;
