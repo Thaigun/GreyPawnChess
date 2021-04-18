@@ -1,4 +1,5 @@
 #include "Move.h"
+#include "BoardFuncs.h"
 
 Move::Move(char from1, char to1) 
 {
@@ -22,4 +23,21 @@ Move::Move(char from1, char to1, Piece prom)
 bool Move::isCastling() const
 {
     return from[1] != -1;
+}
+
+std::string Move::asUCIstr()
+{
+    std::string moveString = BoardFuncs::squareToString(from[0]) + BoardFuncs::squareToString(to[0]);
+    if (promotion != Piece::NONE)
+    {
+        if (!!(promotion & Piece::QUEEN))
+            moveString += "q";
+        else if (!!(promotion & Piece::KNIGHT))
+            moveString += "n";
+        else if (!!(promotion & Piece::BISHOP))
+            moveString += "b";
+        else if (!!(promotion & Piece::ROOK))
+            moveString += "r";
+    }
+    return moveString;
 }

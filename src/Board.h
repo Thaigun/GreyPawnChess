@@ -10,6 +10,8 @@
 class Board 
 {
 public:
+    Board();
+
     std::vector<Move> findPossibleMoves();
     Move constructMove(const std::string& moveUCI);
     void applyMove(const Move& move);

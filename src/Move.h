@@ -2,6 +2,8 @@
 
 #include "Piece.h"
 
+#include <string>
+
 enum class MoveDirection : char
 {
     N = 8, E = 1, W = -1, S = -8,
@@ -15,6 +17,7 @@ struct Move
     Move(char from, char to, Piece prom);
 
     bool isCastling() const;
+    std::string asUCIstr();
     
     char from[2];
     char to[2];

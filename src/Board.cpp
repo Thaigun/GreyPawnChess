@@ -6,6 +6,35 @@
 
 #include "BoardFuncs.h"
 
+Board::Board()
+{
+    // Set up the standard variation board.
+    Piece whitePawn = Piece::PAWN | Piece::WHITE;
+    for (char square = 8; square < 16; square++)
+    {
+        pieces[square] = whitePawn;
+    }
+    Piece blackPawn = Piece::PAWN | Piece::BLACK;
+    for (char square = 6 * 8; square < 7 * 8; square++)
+    {
+        pieces[square] = blackPawn;
+    }
+
+    char ranks[2] = { 0, 7 };
+    Piece colors[2] = { Piece::WHITE, Piece::BLACK };
+    Piece majorPieces[8] = {
+        Piece::ROOK, Piece::KNIGHT, Piece::BISHOP, Piece::QUEEN,
+        Piece::KING, Piece::BISHOP, Piece::KNIGHT, Piece::ROOK
+    };
+    for (char side = 0; side < 2; side++)
+    {
+        for (char file = 0; file < 8; file++)
+        {
+            pieces[ranks[side] * 8 + file] = colors[side] | majorPieces[file];
+        }
+    }
+}
+
 std::vector<Move> Board::findPossibleMoves()
 {
     std::vector<Move> moves;
@@ -13,6 +42,7 @@ std::vector<Move> Board::findPossibleMoves()
     {
         findLegalMovesForSquare(sqr, moves);
     }
+    return moves;
 }
 
 char Board::findSquareWithPiece(Piece piece) const
@@ -250,6 +280,7 @@ std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) cons
         if (queenCastleFree)
             moves.push_back(Move(square, char(rank * 8 + 2), rookSquare, char(rank * 8 + 3)));
     }
+    return moves;
 }
 
 std::vector<Move> Board::findPseudoKingMoves(char square, Color player) const
@@ -300,6 +331,7 @@ std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
         if (targetSquarePiece == Piece::NONE || areSameColor(pieces[square], targetSquarePiece))
             moves.push_back(Move(square, moveSquare));
     }
+    return moves;
 }
 
 std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes) const

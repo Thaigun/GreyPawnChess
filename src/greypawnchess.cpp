@@ -24,21 +24,45 @@ void GreyPawnChess::startGame()
         running = true;
     }
     workThread = std::thread([this]() {
+        // TODO: This whole function will change, this is the placeholder for picking random moves
         // Check if the match is still running.
         while (running) 
         {
             Color currentPlayer;
+            // Lock while reading the state for current player.
             {
                 MTX_LOCK;
                 currentPlayer = playerInTurn();
             }
+            // If waiting for the other player, just idle.
             if (currentPlayer != myColor)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
             }
+            // Lock while reading the game state again.
+            {
+                MTX_LOCK
+                if (moves.size() < gameState.moves.size())
+                {
+                    const std::string newMove = gameState.moves[gameState.moves.size() - 1];
+                    moves.push_back(board.constructMove(newMove));
+                }
+            }
+            if (movesApplied < moves.size())
+            {
+                board.applyMove(moves[moves.size() - 1]);
+                movesApplied++;
+            }
             
-            moveCallback(std::string("e2e4"));
+            std::vector<Move> possibleMoves = board.findPossibleMoves();
+
+            if (possibleMoves.size() == 0)
+                return;
+
+            std::uniform_int_distribution<int> distribution(0, possibleMoves.size() - 1);
+            int randomIdx = distribution(rng);
+            moveCallback(possibleMoves[randomIdx].asUCIstr());
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });

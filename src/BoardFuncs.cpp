@@ -18,4 +18,9 @@ namespace BoardFuncs
         square[1] = file + 49;
         return square;
     }
+
+    std::string squareToString(char square)
+    {
+        return squareToString(square % 8, square / 8);
+    }
 }

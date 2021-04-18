@@ -3,10 +3,13 @@
 #include <chrono>
 #include <functional>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 
+#include "Board.h"
 #include "GameState.h"
+#include "Move.h"
 
 typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
 typedef std::chrono::duration<float> Duration;
@@ -31,6 +34,10 @@ private:
     Duration timeSinceStateSet();
     Color playerInTurn();
 
+    Board board;
+    int movesApplied = 0;
+    std::vector<Move> moves;
+    
     // Members used to manage the worker thread and by the worker thread.
     std::function<void(std::string)> moveCallback;
     std::thread workThread;
@@ -45,5 +52,6 @@ private:
     GameState gameState;
     TimePoint stateSetTime;
 
-    bool debugBool = false;
+    // Other helper members
+    std::default_random_engine rng;
 };
