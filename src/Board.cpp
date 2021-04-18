@@ -12,35 +12,35 @@ bool Board::checkMoveLegality(const std::string& move)
 std::vector<std::string> Board::findAllTargetsForSquare(char square)
 {
     std::vector<std::string> targets;
-    Square data = squares[square];
+    Piece data = pieces[square];
     char rank = square / 8;
     char file = square % 8;
     // TODO: Implement possible piece movements.
-    if (!!(data & Square::PAWN))
+    if (!!(data & Piece::PAWN))
     {
-        char nextRank = !!(data & Square::WHITE) ? rank + 1 : rank - 1;
+        char nextRank = !!(data & Piece::WHITE) ? rank + 1 : rank - 1;
         if (nextRank > 7 || nextRank < 0)
         {
             return targets;
         }
     }
-    else if (!!(data & Square::KNIGHT))
+    else if (!!(data & Piece::KNIGHT))
     {
 
     }
-    else if (!!(data & Square::BISHOP))
+    else if (!!(data & Piece::BISHOP))
     {
 
     }
-    else if (!!(data & Square::ROOK))
+    else if (!!(data & Piece::ROOK))
     {
         
     }
-    else if (!!(data & Square::QUEEN))
+    else if (!!(data & Piece::QUEEN))
     {
         
     }
-    else if (!!(data & Square::KING))
+    else if (!!(data & Piece::KING))
     {
         
     }
@@ -75,35 +75,35 @@ void Board::applyMove(const std::string& move)
 
     const char firstSquareIdx = getSquareIndex(moveStr);
     const char secondSquareIdx = getSquareIndex(&moveStr[2]);
-    const Square firstSquareData = getSquare(moveStr);
-    const Square secondSquareData = getSquare(&moveStr[2]);
-    Square newSquareData = firstSquareData;
+    const Piece firstSquareData = getSquare(moveStr);
+    const Piece secondSquareData = getSquare(&moveStr[2]);
+    Piece newSquareData = firstSquareData;
 
     // Handle potential promotion
-    if (!!(firstSquareData & Square::PAWN))
+    if (!!(firstSquareData & Piece::PAWN))
     {
-        const char promotionRank = !!(firstSquareData & Square::WHITE) ? 0 : 7;
+        const char promotionRank = !!(firstSquareData & Piece::WHITE) ? 0 : 7;
         const char pawnRank = secondSquareIdx / 8;
         if (promotionRank == pawnRank) 
         {
             assert(move.size() >= 5);
-            newSquareData &= ~Square::PAWN;
+            newSquareData &= ~Piece::PAWN;
             switch (move[4]) 
             {
                 case 'q':
-                    newSquareData |= Square::QUEEN;
+                    newSquareData |= Piece::QUEEN;
                     break;
                 case 'r':
-                    newSquareData |= Square::ROOK;
+                    newSquareData |= Piece::ROOK;
                     break;
                 case 'n':
-                    newSquareData |= Square::KNIGHT;
+                    newSquareData |= Piece::KNIGHT;
                     break;
                 case 'b':
-                    newSquareData |= Square::BISHOP;
+                    newSquareData |= Piece::BISHOP;
                     break;
                 default:
-                    newSquareData |= Square::QUEEN;
+                    newSquareData |= Piece::QUEEN;
                     break;
             }
         }
@@ -111,10 +111,10 @@ void Board::applyMove(const std::string& move)
 
     // Handle castling
     bool castles = false;
-    if (!!(firstSquareData & Square::KING)) 
+    if (!!(firstSquareData & Piece::KING)) 
     {
         // Normally, king moving from the original position to the castling square means castling. 
-        if (!!(firstSquareData & Square::WHITE))
+        if (!!(firstSquareData & Piece::WHITE))
         {
             if (firstSquareIdx == getSquareIndex("e1")) 
             {
@@ -122,9 +122,9 @@ void Board::applyMove(const std::string& move)
                 {
                     // White castles king side
                     castles = true;
-                    Square rookSquare = getSquare("h1");
-                    setSquare("h1", Square::NONE);
-                    setSquare(firstSquareIdx, Square::NONE);
+                    Piece rookSquare = getSquare("h1");
+                    setSquare("h1", Piece::NONE);
+                    setSquare(firstSquareIdx, Piece::NONE);
                     setSquare(secondSquareIdx, newSquareData);
                     setSquare("f1", rookSquare);
                 }
@@ -132,15 +132,15 @@ void Board::applyMove(const std::string& move)
                 {
                     // White castles queen side
                     castles = true;
-                    Square rookSquare = getSquare("a1");
-                    setSquare("a1", Square::NONE);
-                    setSquare(firstSquareIdx, Square::NONE);
+                    Piece rookSquare = getSquare("a1");
+                    setSquare("a1", Piece::NONE);
+                    setSquare(firstSquareIdx, Piece::NONE);
                     setSquare(secondSquareIdx, newSquareData);
                     setSquare("d1", rookSquare);
                 }
             }
         }
-        if (!!(firstSquareData & Square::BLACK))
+        if (!!(firstSquareData & Piece::BLACK))
         {
             if (firstSquareIdx == getSquareIndex("e8")) 
             {
@@ -148,9 +148,9 @@ void Board::applyMove(const std::string& move)
                 {
                     // Black castles king side
                     castles = true;
-                    Square rookSquare = getSquare("h8");
-                    setSquare("h8", Square::NONE);
-                    setSquare(firstSquareIdx, Square::NONE);
+                    Piece rookSquare = getSquare("h8");
+                    setSquare("h8", Piece::NONE);
+                    setSquare(firstSquareIdx, Piece::NONE);
                     setSquare(secondSquareIdx, newSquareData);
                     setSquare("f8", rookSquare);
                 }
@@ -158,9 +158,9 @@ void Board::applyMove(const std::string& move)
                 {
                     // Black castles queen side
                     castles = true;
-                    Square rookSquare = getSquare("a8");
-                    setSquare("a8", Square::NONE);
-                    setSquare(firstSquareIdx, Square::NONE);
+                    Piece rookSquare = getSquare("a8");
+                    setSquare("a8", Piece::NONE);
+                    setSquare(firstSquareIdx, Piece::NONE);
                     setSquare(secondSquareIdx, newSquareData);
                     setSquare("d8", rookSquare);
                 }
@@ -168,17 +168,17 @@ void Board::applyMove(const std::string& move)
         }
 
         // In Fischer960 variation castling is denoted by a king taking his own rook.
-        if (!!(secondSquareData & Square::ROOK))
+        if (!!(secondSquareData & Piece::ROOK))
         {
-            if (!!(firstSquareData & Square::WHITE) && !!(secondSquareData & Square::WHITE))
+            if (!!(firstSquareData & Piece::WHITE) && !!(secondSquareData & Piece::WHITE))
             {
                 if (secondSquareIdx % 8 > firstSquareIdx % 8)
                 {
                     // White castles king side
                     castles = true;
-                    Square rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Square::NONE);
-                    setSquare(secondSquareIdx, Square::NONE);
+                    Piece rookSquare = secondSquareData;
+                    setSquare(firstSquareIdx, Piece::NONE);
+                    setSquare(secondSquareIdx, Piece::NONE);
                     setSquare("g1", newSquareData);
                     setSquare("f1", rookSquare);
                 }
@@ -186,22 +186,22 @@ void Board::applyMove(const std::string& move)
                 {
                     // White castles queen side
                     castles = true;
-                    Square rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Square::NONE);
-                    setSquare(secondSquareIdx, Square::NONE);
+                    Piece rookSquare = secondSquareData;
+                    setSquare(firstSquareIdx, Piece::NONE);
+                    setSquare(secondSquareIdx, Piece::NONE);
                     setSquare("c1", newSquareData);
                     setSquare("d1", rookSquare);
                 }
             }
-            if (!!(firstSquareData & Square::BLACK) && !!(secondSquareData & Square::BLACK))
+            if (!!(firstSquareData & Piece::BLACK) && !!(secondSquareData & Piece::BLACK))
             {
                 if (secondSquareIdx % 8 > firstSquareIdx % 8)
                 {
                     // Black castles king side
                     castles = true;
-                    Square rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Square::NONE);
-                    setSquare(secondSquareIdx, Square::NONE);
+                    Piece rookSquare = secondSquareData;
+                    setSquare(firstSquareIdx, Piece::NONE);
+                    setSquare(secondSquareIdx, Piece::NONE);
                     setSquare("g8", newSquareData);
                     setSquare("f8", rookSquare);
                 }
@@ -209,9 +209,9 @@ void Board::applyMove(const std::string& move)
                 {
                     // Black castles queen side
                     castles = true;
-                    Square rookSquare = secondSquareData;
-                    setSquare(firstSquareIdx, Square::NONE);
-                    setSquare(secondSquareIdx, Square::NONE);
+                    Piece rookSquare = secondSquareData;
+                    setSquare(firstSquareIdx, Piece::NONE);
+                    setSquare(secondSquareIdx, Piece::NONE);
                     setSquare("c8", newSquareData);
                     setSquare("d8", rookSquare);
                 }
@@ -222,28 +222,28 @@ void Board::applyMove(const std::string& move)
     if (!castles)
     {
         setSquare(secondSquareIdx, newSquareData);
-        setSquare(firstSquareIdx, Square::NONE);
+        setSquare(firstSquareIdx, Piece::NONE);
     }
     
     // Mark changes in ability to castle.
-    if (!!(firstSquareData & Square::KING))
+    if (!!(firstSquareData & Piece::KING))
     {
-        if (!!(firstSquareData & Square::WHITE))
+        if (!!(firstSquareData & Piece::WHITE))
         {
             whiteCanCastleKing = false;
             whiteCanCastleQueen = false;
         }
-        if (!!(firstSquareData & Square::BLACK)) 
+        if (!!(firstSquareData & Piece::BLACK)) 
         {
             blackCanCastleKing = false;
             blackCanCastleQueen = false;
         }
     }
 
-    if (!!(firstSquareData & Square::ROOK))
+    if (!!(firstSquareData & Piece::ROOK))
     {
         // If the rook was on its starting square and has now moved, cannot castle that side anymore
-        if (!!(firstSquareData & Square::WHITE))
+        if (!!(firstSquareData & Piece::WHITE))
         {
             char whiteQRookStartIdx = queenRookFile;
             char whiteKRookStartIdx = kingRookFile;
@@ -252,7 +252,7 @@ void Board::applyMove(const std::string& move)
             else if (firstSquareIdx == whiteKRookStartIdx)
                 whiteCanCastleKing = false;
         }
-        else if (!!(firstSquareData & Square::BLACK))
+        else if (!!(firstSquareData & Piece::BLACK))
         {
             char blackQRookStartIdx = 8 * 7 + queenRookFile;
             char blackKRookStartIdx = 8 * 7 + kingRookFile;
@@ -262,10 +262,10 @@ void Board::applyMove(const std::string& move)
                 blackCanCastleKing = false;
         }
     }
-    if (!!(secondSquareData & Square::ROOK))
+    if (!!(secondSquareData & Piece::ROOK))
     {
         // If a rook that was on its starting square is taken, we cannot castle that side anymore
-        if (!!(secondSquareData & Square::WHITE))
+        if (!!(secondSquareData & Piece::WHITE))
         {
             char whiteQRookStartIdx = queenRookFile;
             char whiteKRookStartIdx = kingRookFile;
@@ -274,7 +274,7 @@ void Board::applyMove(const std::string& move)
             else if (secondSquareIdx == whiteKRookStartIdx)
                 whiteCanCastleKing = false;
         }
-        else if (!!(secondSquareData & Square::BLACK))
+        else if (!!(secondSquareData & Piece::BLACK))
         {
             char blackQRookStartIdx = 8 * 7 + queenRookFile;
             char blackKRookStartIdx = 8 * 7 + kingRookFile;
@@ -287,10 +287,10 @@ void Board::applyMove(const std::string& move)
 
     // Update en passant possiblity
     enPassant = -1; // Disable by default, enable if needed.
-    if (!!(firstSquareData & Square::PAWN))
+    if (!!(firstSquareData & Piece::PAWN))
     {
         // For white pieces, the square in front is 8 indices ahead, for black it's -8.
-        char rankForwardOffset = !!(firstSquareData & Square::WHITE) ? 8 : -8;
+        char rankForwardOffset = !!(firstSquareData & Piece::WHITE) ? 8 : -8;
         if (secondSquareIdx == firstSquareIdx + 2 * rankForwardOffset) 
         {
             enPassant = firstSquareIdx + rankForwardOffset;
@@ -310,22 +310,22 @@ char Board::getSquareIndex(const char* sqr)
     return 8 * rank + file;
 }
 
-void Board::setSquare(const char* sqr, Square data)
+void Board::setSquare(const char* sqr, Piece data)
 {
-    squares[getSquareIndex(sqr)] = data;
+    pieces[getSquareIndex(sqr)] = data;
 }
 
-void Board::setSquare(char sqr, Square data)
+void Board::setSquare(char sqr, Piece data)
 {
-    squares[sqr] = data;
+    pieces[sqr] = data;
 }
 
-Square Board::getSquare(const char* sqr)
+Piece Board::getSquare(const char* sqr)
 {
-    return squares[getSquareIndex(sqr)];
+    return pieces[getSquareIndex(sqr)];
 }
 
-Square Board::getSquare(char file, char rank)
+Piece Board::getSquare(char file, char rank)
 {
-    return squares[8 * rank + file];
+    return pieces[8 * rank + file];
 }
