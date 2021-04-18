@@ -14,29 +14,31 @@ public:
     Move constructMove(const std::string& moveUCI);
     void applyMove(const Move& move);
 private:
-    Piece getSquare(const char* sqr);
-    Piece getSquare(char file, char rank);
+    Piece getSquare(const char* sqr) const;
+    Piece getSquare(char file, char rank) const;
     void setSquare(const char* sqr, Piece data);
     void setSquare(char sqr, Piece data);
-    char stepSquareInDirection(char square, MoveDirection direction);
+    static char stepSquareInDirection(char square, MoveDirection direction);
 
     void updateCastlingRights(Color color);
-    void findLegalMovesForSquare(char square, std::vector<Move> &moveList);
-    std::vector<Move> findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes = false);
+    void findLegalMovesForSquare(char square, std::vector<Move> &moveList) const;
+    std::vector<Move> findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes = false) const;
     bool checkMoveLegality(const Move& move);
-    bool isThreatened(char square, Color byPlayer);
-    bool areSameColor(Piece p1, Piece p2);
+    char findSquareWithPiece(Piece piece) const;
+    bool isThreatened(char square, Color byPlayer) const;
+    static bool areSameColor(Piece p1, Piece p2);
 
     Move constructPromotionMove(const std::string& moveUCI);
     Move constructCastlingMove(char firstSquare, char secondSquare);
 
-    std::vector<Move> findPseudoPawnMoves(char square, Color player, bool onlyTakes = false);
-    std::vector<Move> findPseudoRookMoves(char square, Color player);
-    std::vector<Move> findPseudoQueenMoves(char square, Color player);
-    std::vector<Move> findPseudoBishopMoves(char square, Color player);
-    std::vector<Move> findPseudoKingMoves(char square, Color player);
-    std::vector<Move> findPseudoKnightMoves(char square, Color player);
-    std::vector<Move> findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps = 1000000);
+    std::vector<Move> findPseudoPawnMoves(char square, Color player, bool onlyTakes = false) const;
+    std::vector<Move> findPseudoRookMoves(char square, Color player) const;
+    std::vector<Move> findPseudoQueenMoves(char square, Color player) const;
+    std::vector<Move> findPseudoBishopMoves(char square, Color player) const;
+    std::vector<Move> findPseudoCastlingMoves(char square, Color player) const;
+    std::vector<Move> findPseudoKingMoves(char square, Color player) const;
+    std::vector<Move> findPseudoKnightMoves(char square, Color player) const;
+    std::vector<Move> findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps = 1000000) const;
 
     // Squares are in order from white's perspective left to right, bottom to top. 
     // a1, b1, c1 ... a1, b2, c2

@@ -18,3 +18,8 @@ Move::Move(char from1, char to1, Piece prom)
     to[0] = from1; to[1] = -1;
     promotion = prom;
 }
+
+bool Move::isCastling() const
+{
+    return from[1] != -1;
+}

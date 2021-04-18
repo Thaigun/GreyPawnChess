@@ -15,17 +15,45 @@ std::vector<Move> Board::findPossibleMoves()
     }
 }
 
-void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) 
+char Board::findSquareWithPiece(Piece piece) const
+{
+    for (char i = 0; i < 64; i++)
+    {
+        if (pieces[i] == piece)
+            return i;
+    }
+    return -1;
+}
+
+void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) const 
 {
     std::vector<Move> pseudoMoves = findPseudoLegalMoves(square, playerInTurn);
     for (Move move : pseudoMoves)
     {
         Board testBoard(*this);
+        
+        if (move.isCastling()) 
+        {
+            char startSqr = std::min(move.from[0], move.to[0]);
+            char endSqr = std::max(move.to[0], move.from[0]);
+            bool castlingThreatened = false;
+            Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
+            for (char square = startSqr; square <= endSqr; square++)
+            {
+                if (isThreatened(square, opponent))
+                {
+                    castlingThreatened = true;
+                    break;
+                }
+            }
+            if (castlingThreatened)
+                continue;
+        }
+
         testBoard.applyMove(move);
         // Check if the current player in turn is in check if the move was applied.
-        // TODO: Check castling moves.
-        // TODO: Find the king square.
-        char kingSquare = 0;
+        Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+        char kingSquare = testBoard.findSquareWithPiece(currentPlayerColor | Piece::KING);
         if (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn))
         {
             moveList.push_back(move);
@@ -65,7 +93,7 @@ char Board::stepSquareInDirection(char square, MoveDirection direction)
     return square + char(direction);
 }
 
-std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes)
+std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes) const
 {
     char file = square % 8;
     char rank = square / 8;
@@ -118,7 +146,7 @@ std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onl
     return moves; 
 }
 
-std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps)
+std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps) const
 {
     int stepsLeft = maxSteps;
     std::vector<Move> moves;
@@ -143,7 +171,7 @@ std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vect
     return moves;
 }
 
-std::vector<Move> Board::findPseudoRookMoves(char square, Color player)
+std::vector<Move> Board::findPseudoRookMoves(char square, Color player) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -154,7 +182,7 @@ std::vector<Move> Board::findPseudoRookMoves(char square, Color player)
     return findDirectionalPseudoMoves(square, directions);
 }
 
-std::vector<Move> Board::findPseudoQueenMoves(char square, Color player)
+std::vector<Move> Board::findPseudoQueenMoves(char square, Color player) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -169,9 +197,63 @@ std::vector<Move> Board::findPseudoQueenMoves(char square, Color player)
     return findDirectionalPseudoMoves(square, directions);
 }
 
-std::vector<Move> Board::findPseudoKingMoves(char square, Color player)
+std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) const
 {
-    // TODO: Find castling moves too.
+    std::vector<Move> moves;
+    char rank = player == Color::WHITE ? 0 : 7;
+    bool kingSideAvailable = player == Color::WHITE ? whiteCanCastleKing : blackCanCastleKing;
+    bool queenSideAvailable = player == Color::WHITE ? whiteCanCastleQueen : blackCanCastleQueen;
+    char currentFile = square % 8;
+    
+    if (kingSideAvailable)
+    {   
+        char rookSquare = char(rank * 8 + kingRookFile);
+        char leftEnd = std::min(square, char(rank * 8 + 5));
+        char rightEnd = std::max(char(rank * 8 + 6), rookSquare);
+
+        bool kingCastleFree = true;
+        for (char stepSquare = leftEnd; square <= rightEnd; stepSquare++)
+        {
+            if (stepSquare == square || stepSquare == rookSquare)
+                continue;
+                
+            if (pieces[stepSquare] != Piece::NONE)
+            {
+                kingCastleFree = false;
+                break;
+            }
+        }
+        if (kingCastleFree)
+            moves.push_back(Move(square, char(rank * 8 + 6), rookSquare, char(rank * 8 + 5)));
+    }
+
+    if (queenSideAvailable)
+    {
+        char rookSquare = char(rank * 8 + queenRookFile);
+        char rightEnd = std::max(square, char(rank * 8 + 3));
+        char leftEnd = std::min(char(rank * 8 + 2), rookSquare);
+
+        int kingsAllowed = 1;
+        int rooksAllowed = 1;
+        bool queenCastleFree = true;
+        for (char stepSquare = leftEnd; square <= rightEnd; stepSquare++)
+        {
+            if (stepSquare == square || stepSquare == rookSquare)
+                continue;
+                
+            if (pieces[stepSquare] != Piece::NONE)
+            {
+                queenCastleFree = false;
+                break;
+            }
+        }
+        if (queenCastleFree)
+            moves.push_back(Move(square, char(rank * 8 + 2), rookSquare, char(rank * 8 + 3)));
+    }
+}
+
+std::vector<Move> Board::findPseudoKingMoves(char square, Color player) const
+{
     std::vector<MoveDirection> directions {
         MoveDirection::N,
         MoveDirection::S,
@@ -183,10 +265,12 @@ std::vector<Move> Board::findPseudoKingMoves(char square, Color player)
         MoveDirection::NW
     };
     std::vector<Move> moves = findDirectionalPseudoMoves(square, directions, 1);
+    std::vector<Move> castlingMoves = findPseudoCastlingMoves(square, player);
+    moves.insert(moves.end(), castlingMoves.begin(), castlingMoves.end());
     return moves;
 }
 
-std::vector<Move> Board::findPseudoBishopMoves(char square, Color player)
+std::vector<Move> Board::findPseudoBishopMoves(char square, Color player) const 
 {
     std::vector<MoveDirection> directions {
         MoveDirection::NE,
@@ -197,7 +281,7 @@ std::vector<Move> Board::findPseudoBishopMoves(char square, Color player)
     return findDirectionalPseudoMoves(square, directions);    
 }
 
-std::vector<Move> Board::findPseudoKnightMoves(char square, Color player)
+std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
 {
     std::vector<Move> moves;
     char rank = square % 8;
@@ -218,7 +302,7 @@ std::vector<Move> Board::findPseudoKnightMoves(char square, Color player)
     }
 }
 
-std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes)
+std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes) const
 {
     std::vector<Move> moves;
     Piece piece = pieces[square];
@@ -255,7 +339,7 @@ std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool
     return moves;
 }
 
-bool Board::isThreatened(char square, Color byPlayer)
+bool Board::isThreatened(char square, Color byPlayer) const
 {
     Piece targetPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
     // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
@@ -383,6 +467,22 @@ void Board::applyMove(const Move& move)
 
     updateCastlingRights(playerInTurn);
 
+    // Also forcefully update the castling rights if this move was a castling. Otherwise
+    // weird scenarios are possible in 960 if the king stays still while castling.
+    if (move.isCastling())
+    {
+        if (playerInTurn == Color::WHITE)
+        {
+            whiteCanCastleKing = false;
+            whiteCanCastleQueen = false;
+        }
+        else 
+        {
+            blackCanCastleKing = false;
+            blackCanCastleQueen = false;
+        }
+    }
+
     // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
 }
@@ -451,12 +551,12 @@ void Board::setSquare(char sqr, Piece data)
     pieces[sqr] = data;
 }
 
-Piece Board::getSquare(const char* sqr)
+Piece Board::getSquare(const char* sqr) const
 {
     return pieces[BoardFuncs::getSquareIndex(sqr)];
 }
 
-Piece Board::getSquare(char file, char rank)
+Piece Board::getSquare(char file, char rank) const
 {
     return pieces[8 * rank + file];
 }
