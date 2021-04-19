@@ -28,6 +28,7 @@ enum Color
     WHITE, BLACK, NONE
 };
 
+// Represents the game state as received by a server or other source of truth.
 struct GameState 
 {
     GameState() = default;

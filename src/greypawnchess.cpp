@@ -62,7 +62,10 @@ void GreyPawnChess::startGame()
             board.applyMove(selectedMove);
             moves.push_back(selectedMove);
             movesApplied++;
-            moveCallback(selectedMove.asUCIstr());
+            {
+                MTX_LOCK
+                moveCallback(selectedMove.asUCIstr());
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
