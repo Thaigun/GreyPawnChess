@@ -114,7 +114,7 @@ function startGame(msg) {
             storedGameObj.connection = res;
             dataStream.on('data', (data) => {
                 console.log(data);
-                handleGameUpdate(data);
+                handleGameUpdate(data, storedGameObj);
             });
             dataStream.on('close', () => {
                 console.log('Game closed');
@@ -123,12 +123,7 @@ function startGame(msg) {
     );
 }
 
-function handleGameUpdate(msg) {
-    let gameIdx = ongoingGames.findIndex(g => g.id === msg.id);
-    if (gameIdx == -1)
-        return;
-
-    let ongoingGame = ongoingGames[gameIdx];
+function handleGameUpdate(msg, ongoingGame) {
     switch (msg.type) {
         case 'gameFull':
             if (!ongoingGame.setupDone) {
@@ -146,6 +141,7 @@ function handleGameUpdate(msg) {
             }
             break;
         case 'gameState':
+            console.log('Calling game state update from Node.');
             ongoingGame.game.updateGameState(msg);
             break;
     }

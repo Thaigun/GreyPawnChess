@@ -28,19 +28,7 @@ void GreyPawnChess::startGame()
         // Check if the match is still running.
         while (running) 
         {
-            Color currentPlayer;
-            // Lock while reading the state for current player.
-            {
-                MTX_LOCK;
-                currentPlayer = playerInTurn();
-            }
-            // If waiting for the other player, just idle.
-            if (currentPlayer != myColor)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
-            }
-            // Lock while reading the game state again.
+            // Update server state to our local state.
             {
                 MTX_LOCK
                 if (moves.size() < gameState.moves.size())
@@ -49,6 +37,14 @@ void GreyPawnChess::startGame()
                     moves.push_back(board.constructMove(newMove));
                 }
             }
+
+            // If waiting for the other player, just idle.
+            if (playerInTurn() != myColor)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
+            
             if (movesApplied < moves.size())
             {
                 board.applyMove(moves[moves.size() - 1]);
@@ -62,7 +58,9 @@ void GreyPawnChess::startGame()
 
             std::uniform_int_distribution<int> distribution(0, possibleMoves.size() - 1);
             int randomIdx = distribution(rng);
-            moveCallback(possibleMoves[randomIdx].asUCIstr());
+            Move& selectedMove = possibleMoves[randomIdx];
+            moves.push_back(selectedMove);
+            moveCallback(selectedMove.asUCIstr());
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
@@ -104,5 +102,5 @@ Color GreyPawnChess::playerInTurn()
     if (gameState.finishedStatus())
         return NONE;
 
-    return gameState.moves.size() % 2 == 0 ? WHITE : BLACK;
+    return moves.size() % 2 == 0 ? WHITE : BLACK;
 }

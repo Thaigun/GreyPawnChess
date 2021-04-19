@@ -33,6 +33,11 @@ Board::Board()
             pieces[ranks[side] * 8 + file] = colors[side] | majorPieces[file];
         }
     }
+
+    for (char square = 16; square < 6 * 8; square++)
+    {
+        pieces[square] = Piece::NONE;
+    }
 }
 
 std::vector<Move> Board::findPossibleMoves()
@@ -315,8 +320,8 @@ std::vector<Move> Board::findPseudoBishopMoves(char square, Color player) const
 std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
 {
     std::vector<Move> moves;
-    char rank = square % 8;
-    char file = square / 8;
+    char file = square % 8;
+    char rank = square / 8;
     char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
     char fileOffsets[8] = { -2,-1,1,2, 2, 1,-1,-2 };
     for (int i = 0; i < 8; i++)

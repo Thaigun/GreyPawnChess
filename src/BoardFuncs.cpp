@@ -15,7 +15,7 @@ namespace BoardFuncs
     {
         std::string square(2, 0);
         square[0] = file + 97;
-        square[1] = file + 49;
+        square[1] = rank + 49;
         return square;
     }
 

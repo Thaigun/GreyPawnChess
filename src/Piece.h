@@ -9,10 +9,10 @@ enum class Piece : uint16_t
     KNIGHT = 1 << 2,
     BISHOP = 1 << 3,
     ROOK = 1 << 4,
-    QUEEN = 1 << 4,
-    KING = 1 << 5,
-    WHITE = 1 << 6,
-    BLACK = 1 << 7,
+    QUEEN = 1 << 5,
+    KING = 1 << 6,
+    WHITE = 1 << 7,
+    BLACK = 1 << 8,
     COLOR_MASK = WHITE | BLACK
 };
 
