@@ -1,0 +1,23 @@
+{
+  "name": "grey-pawn-chess",
+  "version": "0.0.1",
+  "description": "Module that allows integrating the GreyPawnChess engine to Node.js.",
+  "main": "index.js",
+  "scripts": {
+    "build": "node-gyp rebuild -j max",
+    "build:debug": "node-gyp rebuild --debug",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "*"
+  },
+  "keywords": [
+    "c++",
+    "chess",
+    "ai",
+    "engine"
+  ],
+  "author": "Antti M.",
+  "license": "MIT"
+}

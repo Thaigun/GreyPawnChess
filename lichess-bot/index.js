@@ -8,7 +8,7 @@ const axios = require('axios');
 const ndjson = require('ndjson');
 
 // Chess engine require
-const greypawnchess = require('bindings')('greypawnchess');
+const greypawnchess = require('grey-pawn-chess');
 
 // Setup and config
 const baseUrl = 'https://lichess.org/api/';

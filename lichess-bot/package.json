@@ -1,13 +1,10 @@
 {
-  "name": "greypawnchess",
+  "name": "lihcess-greypawnchess",
   "version": "0.0.1",
   "description": "Chess bot for Lichess.",
   "main": "index.js",
   "scripts": {
-    "build": "node-gyp rebuild -j max",
-    "build:debug": "node-gyp rebuild --debug",
-    "nodestart": "node index.js",
-    "start": "node-gyp rebuild -j max && node index.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -16,9 +13,8 @@
   },
   "dependencies": {
     "axios": "^0.21.1",
-    "bindings": "^1.5.0",
-    "ndjson": "^2.0.0",
-    "node-addon-api": "*"
+    "grey-pawn-chess": "file:../addon",
+    "ndjson": "^2.0.0"
   },
   "keywords": [
     "node",

@@ -4,8 +4,8 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include "GreyPawnChess.h"
-#include "GameState.h"
+#include "../engine/GreyPawnChess.h"
+#include "../engine/GameState.h"
 
 /**
  * Middleware code to connect Node.js to the C++ chess engine. Purpose and goal of this
