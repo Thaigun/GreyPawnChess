@@ -31,11 +31,17 @@ void GreyPawnChess::startGame()
             // Update server state to our local state.
             {
                 MTX_LOCK
-                if (moves.size() < gameState.moves.size())
+                while (moves.size() < gameState.moves.size())
                 {
-                    const std::string newMove = gameState.moves[gameState.moves.size() - 1];
+                    const std::string newMove = gameState.moves[moves.size()];
                     moves.push_back(board.constructMove(newMove));
                 }
+            }
+
+            while (movesApplied < moves.size())
+            {
+                board.applyMove(moves[moves.size() - 1]);
+                movesApplied++;
             }
 
             // If waiting for the other player, just idle.
@@ -43,12 +49,6 @@ void GreyPawnChess::startGame()
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
-            }
-            
-            if (movesApplied < moves.size())
-            {
-                board.applyMove(moves[moves.size() - 1]);
-                movesApplied++;
             }
             
             std::vector<Move> possibleMoves = board.findPossibleMoves();
@@ -59,7 +59,9 @@ void GreyPawnChess::startGame()
             std::uniform_int_distribution<int> distribution(0, possibleMoves.size() - 1);
             int randomIdx = distribution(rng);
             Move& selectedMove = possibleMoves[randomIdx];
+            board.applyMove(selectedMove);
             moves.push_back(selectedMove);
+            movesApplied++;
             moveCallback(selectedMove.asUCIstr());
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
