@@ -16,13 +16,18 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(
-    MoveTest
+    EngineTest
+    BoardTest.cpp
+    BoardFuncsTest.cpp
+    GameStateTest.cpp
+    GreyPawnChessTest.cpp
     MoveTest.cpp
+    PieceTest.cpp
 )
 target_link_libraries(
-    MoveTest
+    EngineTest
     gtest_main
 )
 
 include(GoogleTest)
-gtest_discover_tests(MoveTest)
+gtest_discover_tests(EngineTest)

@@ -1,12 +1,14 @@
 {
   "name": "grey-pawn-chess",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Module that allows integrating the GreyPawnChess engine to Node.js.",
   "main": "index.js",
   "scripts": {
     "build": "node-gyp rebuild -j max",
     "build:debug": "node-gyp rebuild --debug",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:engine-test": "cd engine/test && cmake -S . -B build && cmake --build build",
+    "test:engine": "cd engine/test/build && ctest",
+    "test": "npm run test:engine"
   },
   "dependencies": {
     "bindings": "^1.5.0",
