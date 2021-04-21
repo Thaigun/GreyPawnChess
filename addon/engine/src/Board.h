@@ -51,8 +51,8 @@ private:
     Piece pieces[64];
     Color playerInTurn = Color::WHITE;
     // These are saved in order to support Chess960 in the future.
-    char kingRookFile = 0;
-    char queenRookFile = 7;
+    char kingRookFile = 7;
+    char queenRookFile = 0;
     char kingStartFile = 4;
     bool whiteCanCastleKing = true;
     bool whiteCanCastleQueen = true;

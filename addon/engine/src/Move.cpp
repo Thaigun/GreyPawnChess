@@ -46,6 +46,5 @@ std::string Move::asUCIstr()
         else if (!!(promotion & Piece::ROOK))
             moveString += "r";
     }
-std::cout << moveString << std::endl;
     return moveString;
 }

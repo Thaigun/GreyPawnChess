@@ -46,6 +46,9 @@ Board::Board()
 Board Board::buildFromFEN(const std::string& fenString)
 {
     Board newBoard;
+    for (int i = 0; i < 64; i++)
+        newBoard.pieces[i] = Piece::NONE;
+
     // Split the string by spaces.
     std::vector<std::string> fenParts = StringUtil::split(fenString);
     std::vector<std::string> boardPieces = StringUtil::split(fenParts[0], '/');
@@ -174,7 +177,7 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
             char endSqr = std::max(move.to[0], move.from[0]);
             bool castlingThreatened = false;
             Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
-            for (char square = startSqr; square <= endSqr; square++)
+            for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
             {
                 if (isThreatened(square, opponent))
                 {
@@ -231,27 +234,37 @@ char Board::stepSquareInDirection(char square, MoveDirection direction)
 
 std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes) const
 {
-    char file = square % 8;
-    char rank = square / 8;
-    char nextRank = player == Color::WHITE ? rank + 1 : rank - 1;
-    bool promotion = nextRank == 7 || nextRank == 0;
+    MoveDirection pawnDirection = player == Color::WHITE ? MoveDirection::N : MoveDirection::S;
+    char nextSquare = stepSquareInDirection(square, pawnDirection);
+    bool promotion = nextSquare < 8 || nextSquare >= 7 * 8;
     std::vector<Move> moves;
 
     assert(square < 7 * 8 && square >= 8 && "Pawn is never on the last rank.");
 
-    if (!onlyTakes && getSquare(file, nextRank) == Piece::NONE)
+    if (!onlyTakes)
     {
-        char nextSquareIdx = nextRank * 8 + file;
-        if (promotion)
+        if (pieces[nextSquare] == Piece::NONE)
         {
-            moves.push_back(Move(square, nextSquareIdx, Piece::QUEEN));
-            moves.push_back(Move(square, nextSquareIdx, Piece::KNIGHT));
-            moves.push_back(Move(square, nextSquareIdx, Piece::ROOK));
-            moves.push_back(Move(square, nextSquareIdx, Piece::BISHOP));
-        }
-        else 
-        {
-            moves.push_back(Move(square, nextSquareIdx));
+            if (promotion)
+            {
+                moves.push_back(Move(square, nextSquare, Piece::QUEEN));
+                moves.push_back(Move(square, nextSquare, Piece::KNIGHT));
+                moves.push_back(Move(square, nextSquare, Piece::ROOK));
+                moves.push_back(Move(square, nextSquare, Piece::BISHOP));
+            }
+            else 
+            {
+                moves.push_back(Move(square, nextSquare));
+            }
+            // Double step for a pawn?
+            char rank = square / 8;
+            char startRank = player == Color::WHITE ? 1 : 6;
+            if (rank == startRank)
+            {
+                char nextnextSquare = stepSquareInDirection(nextSquare, pawnDirection);
+                if (pieces[nextnextSquare] == Piece::NONE)
+                    moves.push_back(Move(square, nextnextSquare));
+            }
         }
     }
     MoveDirection attackDirections[2];
@@ -284,12 +297,12 @@ std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onl
 
 std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps) const
 {
-    int stepsLeft = maxSteps;
     std::vector<Move> moves;
     for (MoveDirection dir : directions) 
     {
         char nextSquare = stepSquareInDirection(square, dir);
-        while (nextSquare != -1 && maxSteps-- > 0)
+        int stepsLeft = maxSteps;
+        while (nextSquare != -1 && stepsLeft-- > 0)
         {
             if (pieces[nextSquare] == Piece::NONE) 
             {
@@ -348,7 +361,7 @@ std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) cons
         char rightEnd = std::max(char(rank * 8 + 6), rookSquare);
 
         bool kingCastleFree = true;
-        for (char stepSquare = leftEnd; square <= rightEnd; stepSquare++)
+        for (char stepSquare = leftEnd; stepSquare <= rightEnd; stepSquare++)
         {
             if (stepSquare == square || stepSquare == rookSquare)
                 continue;
@@ -369,10 +382,8 @@ std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) cons
         char rightEnd = std::max(square, char(rank * 8 + 3));
         char leftEnd = std::min(char(rank * 8 + 2), rookSquare);
 
-        int kingsAllowed = 1;
-        int rooksAllowed = 1;
         bool queenCastleFree = true;
-        for (char stepSquare = leftEnd; square <= rightEnd; stepSquare++)
+        for (char stepSquare = leftEnd; stepSquare <= rightEnd; stepSquare++)
         {
             if (stepSquare == square || stepSquare == rookSquare)
                 continue;
@@ -434,7 +445,7 @@ std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
         
         char moveSquare = 8 * moveRank + moveFile;
         Piece targetSquarePiece = pieces[moveSquare];
-        if (targetSquarePiece == Piece::NONE || areSameColor(pieces[square], targetSquarePiece))
+        if (targetSquarePiece == Piece::NONE || !areSameColor(pieces[square], targetSquarePiece))
             moves.push_back(Move(square, moveSquare));
     }
     return moves;
