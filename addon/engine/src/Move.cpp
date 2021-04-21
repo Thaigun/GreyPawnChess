@@ -27,6 +27,11 @@ bool Move::isCastling() const
     return from[1] != -1;
 }
 
+bool Move::isPromotion() const
+{
+    return promotion != Piece::NONE;
+}
+
 std::string Move::asUCIstr()
 {
     std::string moveString = BoardFuncs::squareToString(from[0]) + BoardFuncs::squareToString(to[0]);

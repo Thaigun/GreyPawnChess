@@ -11,13 +11,17 @@ class Board
 {
 public:
     Board();
+    static Board buildFromFEN(const std::string& fenString);
 
-    std::vector<Move> findPossibleMoves();
+    std::vector<Move> findPossibleMoves() const;
     Move constructMove(const std::string& moveUCI);
     void applyMove(const Move& move);
-private:
     Piece getSquare(const char* sqr) const;
     Piece getSquare(char file, char rank) const;
+
+    std::string getFEN() const;
+
+private:
     void setSquare(const char* sqr, Piece data);
     void setSquare(char sqr, Piece data);
     static char stepSquareInDirection(char square, MoveDirection direction);

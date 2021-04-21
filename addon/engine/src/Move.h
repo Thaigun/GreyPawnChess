@@ -17,6 +17,7 @@ struct Move
     Move(char from, char to, Piece prom);
 
     bool isCastling() const;
+    bool isPromotion() const;
     std::string asUCIstr();
     
     char from[2];

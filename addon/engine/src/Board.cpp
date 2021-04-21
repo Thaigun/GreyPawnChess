@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <iterator>
+#include <sstream>
 #include <utility>
 
 #include "BoardFuncs.h"
+#include "StringUtil.h"
 
 Board::Board()
 {
@@ -40,7 +43,105 @@ Board::Board()
     }
 }
 
-std::vector<Move> Board::findPossibleMoves()
+Board Board::buildFromFEN(const std::string& fenString)
+{
+    Board newBoard;
+    // Split the string by spaces.
+    std::vector<std::string> fenParts = StringUtil::split(fenString);
+    std::vector<std::string> boardPieces = StringUtil::split(fenParts[0], '/');
+    
+    // FEN Notation starts from a8. Put all pieces on the board.
+    char currentSquare = 7 * 8;
+    for (const std::string& rank : boardPieces)
+    {
+        for (const char& piece : rank)
+        {
+            // char 56 = '8'
+            if (piece <= 56)
+            {
+                currentSquare += piece - 48;
+                continue;
+            }
+            if (piece == 'p')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::PAWN;
+            }
+            else if (piece == 'P')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::PAWN;
+            }
+            else if (piece == 'n')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::KNIGHT;
+            }
+            else if (piece == 'N')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::KNIGHT;
+            }
+            else if (piece == 'b')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::BISHOP;
+            }
+            else if (piece == 'B')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::BISHOP;
+            }
+            else if (piece == 'r')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::ROOK;
+            }
+            else if (piece == 'R')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::ROOK;
+            }
+            else if (piece == 'q')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::QUEEN;
+            }
+            else if (piece == 'Q')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::QUEEN;
+            }
+            else if (piece == 'k')
+            {
+                newBoard.pieces[currentSquare++] = Piece::BLACK | Piece::KING;
+            }
+            else if (piece == 'K')
+            {
+                newBoard.pieces[currentSquare++] = Piece::WHITE | Piece::KING;
+            }
+        }
+        // Step to the beginning of the previous rank.
+        currentSquare -= 16;
+    }
+    newBoard.playerInTurn = fenParts[1].front() == 'w' ? Color::WHITE : Color::BLACK;
+    
+    // In the notation, castling rights are disabled unless specificly enabled.
+    newBoard.whiteCanCastleKing = false;
+    newBoard.whiteCanCastleQueen = false;
+    newBoard.blackCanCastleKing = false;
+    newBoard.blackCanCastleQueen = false;
+    for (const char& castlingRight : fenParts[2])
+    {
+        if (castlingRight == 'k')
+            newBoard.blackCanCastleKing = true;
+        else if (castlingRight == 'K')
+            newBoard.whiteCanCastleKing = true;
+        else if (castlingRight == 'q')
+            newBoard.blackCanCastleQueen = true;
+        else if (castlingRight == 'Q')
+            newBoard.whiteCanCastleQueen = true;
+    }
+
+    // Detect en passant availability
+    if (!(fenParts[3].front() == '-'))
+    {
+        newBoard.enPassant = BoardFuncs::getSquareIndex(fenParts[3]);
+    }
+    return newBoard;
+}
+
+std::vector<Move> Board::findPossibleMoves() const
 {
     std::vector<Move> moves;
     for (char sqr = 0; sqr < (char)64; sqr++)

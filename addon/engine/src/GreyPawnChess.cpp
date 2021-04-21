@@ -56,7 +56,7 @@ void GreyPawnChess::startGame()
             if (possibleMoves.size() == 0)
                 return;
 
-            std::uniform_int_distribution<int> distribution(0, possibleMoves.size() - 1);
+            std::uniform_int_distribution<int> distribution(0, (int)possibleMoves.size() - 1);
             int randomIdx = distribution(rng);
             Move& selectedMove = possibleMoves[randomIdx];
             board.applyMove(selectedMove);

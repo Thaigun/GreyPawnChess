@@ -15,14 +15,24 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+# This setup seems and feels wrong and there is probably a better way to do it.
+# It was hacked together by a CMake noob based on derstood copy-pasta snippets.
 add_executable(
     EngineTest
+    # Test files
     BoardTest.cpp
     BoardFuncsTest.cpp
     GameStateTest.cpp
     GreyPawnChessTest.cpp
     MoveTest.cpp
     PieceTest.cpp
+    # Engine files
+    ../src/Board.cpp
+    ../src/BoardFuncs.cpp
+    ../src/GameState.cpp
+    ../src/GreyPawnChess.cpp
+    ../src/Move.cpp
+    ../src/PGNParsing.cpp
 )
 target_link_libraries(
     EngineTest

@@ -17,6 +17,11 @@ namespace BoardFuncs
         return 8 * rank + file;
     }
 
+    char getSquareIndex(const std::string& sqr)
+    {
+        return getSquareIndex(sqr.c_str());
+    }
+
     std::string squareToString(char file, char rank) 
     {
         assert(file >= 0 && file <= 7);
