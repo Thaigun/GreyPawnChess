@@ -276,8 +276,13 @@ std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onl
         char attackSquare = stepSquareInDirection(square, dir);
         if (attackSquare == -1)
             continue;
-        if (enPassant == attackSquare || 
-            (pieces[attackSquare] != Piece::NONE && !areSameColor(pieces[square], pieces[attackSquare])))
+
+        if (enPassant == attackSquare)
+        {
+            char takePieceSquare = attackSquare - (char)pawnDirection;
+            moves.push_back(Move(square, attackSquare, takePieceSquare, -1));
+        }
+        else if (pieces[attackSquare] != Piece::NONE && !areSameColor(pieces[square], pieces[attackSquare]))
         {
             if (promotion)
             {
@@ -579,7 +584,7 @@ void Board::applyMove(const Move& move)
     {
         char from = move.from[i];
         char to = move.to[i];
-        if (from < 0 || to < 0)
+        if (from < 0)
             continue;
 
         movePieces[i] = pieces[from];
@@ -589,7 +594,7 @@ void Board::applyMove(const Move& move)
     {
         char from = move.from[i];
         char to = move.to[i];
-        if (from < 0 || to < 0)
+        if (from < 0)
             continue;
 
         Piece movePiece = movePieces[i];
@@ -603,7 +608,7 @@ void Board::applyMove(const Move& move)
         // Update en passant square
         if (!!(movePiece & Piece::PAWN))
         {
-            // Moved to ranks to either direction?
+            // Moved two ranks to either direction?
             if (std::abs(from - to) == (char)16)
             {
                 // En passant square is between from and to.
@@ -611,7 +616,8 @@ void Board::applyMove(const Move& move)
             }
         }
         pieces[from] = Piece::NONE;
-        pieces[to] = movePiece;
+        if (to >= 0 && to < 64)
+            pieces[to] = movePiece;
     }
 
     updateCastlingRights(playerInTurn);

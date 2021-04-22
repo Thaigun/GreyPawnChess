@@ -29,3 +29,11 @@ TEST(MoveTest, NormalMove)
 	EXPECT_FALSE(normalMove.isPromotion());
 	EXPECT_EQ(normalMove.asUCIstr(), "d2d3");
 }
+
+TEST(MoveTest, EnPassantMove)
+{
+	Move enPassantMove(29, 22, 30, -1);
+	EXPECT_FALSE(enPassantMove.isCastling());
+	EXPECT_FALSE(enPassantMove.isPromotion());
+	EXPECT_EQ(enPassantMove.asUCIstr(), "f4g3");
+}

@@ -6,7 +6,7 @@
 #include "../src/Board.h"
 #include "../src/Move.h"
 
-unsigned int countPossibleMoves(const Board& board, unsigned int depth)
+unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool divide = false)
 {
 	if (depth == 0u)
 	{
@@ -17,9 +17,15 @@ unsigned int countPossibleMoves(const Board& board, unsigned int depth)
 	std::vector<Move> possibleMoves = board.findPossibleMoves();
 	for (const Move& move : possibleMoves)
 	{
+		
 		Board nextBoard = board;
 		nextBoard.applyMove(move);
-		foundMoves += countPossibleMoves(nextBoard, depth - 1);
+		unsigned int nextBoardMoves = countPossibleMoves(nextBoard, depth - 1);
+		foundMoves += nextBoardMoves;
+		if (divide)
+		{
+			std::cout << move.asUCIstr() << ": " << nextBoardMoves << std::endl;
+		}
 	}
 	return foundMoves;
 }
@@ -31,7 +37,7 @@ TEST(BoardTest, LegalMoves1)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 20u, 400u, 8902u, 197281u, 4865609u
 	};
-	for (int depth = 1; depth < 4; depth++)
+	for (int depth = 1; depth < 5; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
@@ -44,7 +50,7 @@ TEST(BoardTest, LegalMoves2)
 	unsigned int expectedMoveCounts[5] = {
 		1u, 48u, 2039u, 97862u, 4085603u
 	};
-	for (int depth = 1; depth < 2; depth++)
+	for (int depth = 1; depth < 4; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
@@ -57,7 +63,7 @@ TEST(BoardTest, LegalMoves3)
 	unsigned int expectedMoveCounts[7] = {
 		1u, 14u, 191u, 2812u, 43238u, 674624u, 11030083u
 	};
-	for (int depth = 1; depth < 2; depth++)
+	for (int depth = 1; depth < 6; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
@@ -70,7 +76,7 @@ TEST(BoardTest, LegalMoves4)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 6u, 264u, 9467u, 422333u, 15833292u
 	};
-	for (int depth = 1; depth < 4; depth++)
+	for (int depth = 1; depth < 5; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
@@ -83,7 +89,7 @@ TEST(BoardTest, LegalMoves5)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 44u, 1486u, 62379u, 2103487u, 89941194u
 	};
-	for (int depth = 1; depth < 3; depth++)
+	for (int depth = 1; depth < 4; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
