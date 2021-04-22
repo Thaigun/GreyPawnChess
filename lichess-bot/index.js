@@ -151,8 +151,6 @@ async function makeMove(gameId, move) {
     try {
         console.log('Making move ' + move);
         let moveResponse = await axiosInstance.post('/bot/game/' + gameId + '/move/' + move);
-        if (moveResponse == 200)
-            break;  
     } catch (err) {
         console.log('Error when sending move ' + move);
         console.error(err);
