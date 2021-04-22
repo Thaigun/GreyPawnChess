@@ -232,7 +232,7 @@ char Board::stepSquareInDirection(char square, MoveDirection direction)
     return square + char(direction);
 }
 
-std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes) const
+std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes, bool forceIncludeTakes) const
 {
     MoveDirection pawnDirection = player == Color::WHITE ? MoveDirection::N : MoveDirection::S;
     char nextSquare = stepSquareInDirection(square, pawnDirection);
@@ -282,7 +282,7 @@ std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onl
             char takePieceSquare = attackSquare - (char)pawnDirection;
             moves.push_back(Move(square, attackSquare, takePieceSquare, -1));
         }
-        else if (pieces[attackSquare] != Piece::NONE && !areSameColor(pieces[square], pieces[attackSquare]))
+        else if (forceIncludeTakes || (pieces[attackSquare] != Piece::NONE && !areSameColor(pieces[square], pieces[attackSquare])))
         {
             if (promotion)
             {
@@ -456,7 +456,7 @@ std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
     return moves;
 }
 
-std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes) const
+std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes, bool forceIncludePawnTakes) const
 {
     std::vector<Move> moves;
     Piece piece = pieces[square];
@@ -468,27 +468,27 @@ std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool
     
     if (!!(piece & Piece::PAWN))
     {
-        return findPseudoPawnMoves(square, playerInTurn, pawnOnlyTakes);
+        return findPseudoPawnMoves(square, forPlayer, pawnOnlyTakes, forceIncludePawnTakes);
     }
     else if (!!(piece & Piece::ROOK))
     {
-        return findPseudoRookMoves(square, playerInTurn);
+        return findPseudoRookMoves(square, forPlayer);
     }
     else if (!!(piece & Piece::QUEEN))
     {
-        return findPseudoQueenMoves(square, playerInTurn);
+        return findPseudoQueenMoves(square, forPlayer);
     }
     else if (!!(piece & Piece::KING))
     {
-        return findPseudoKingMoves(square, playerInTurn);
+        return findPseudoKingMoves(square, forPlayer);
     }
     else if (!!(piece & Piece::BISHOP))
     {
-        return findPseudoBishopMoves(square, playerInTurn);
+        return findPseudoBishopMoves(square, forPlayer);
     }
     else if (!!(piece & Piece::KNIGHT))
     {
-        return findPseudoKnightMoves(square, playerInTurn);
+        return findPseudoKnightMoves(square, forPlayer);
     }
     return moves;
 }
@@ -499,7 +499,7 @@ bool Board::isThreatened(char square, Color byPlayer) const
     // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
     for (char i = 0; i < 64; i++)
     {
-        std::vector<Move> moves = findPseudoLegalMoves(i, byPlayer, true);
+        std::vector<Move> moves = findPseudoLegalMoves(i, byPlayer, true, true);
         for (const Move& move : moves)
         {
             if (move.to[0] == square)
@@ -645,7 +645,6 @@ void Board::applyMove(const Move& move)
 void Board::updateCastlingRights(Color color)
 {
     // Update for white
-    if (color == Color::WHITE)
     {
         if (whiteCanCastleQueen)
         {
@@ -670,23 +669,22 @@ void Board::updateCastlingRights(Color color)
         }
     }
     // Update for black
-    if (color == Color::BLACK)
     {
         if (blackCanCastleQueen)
         {
-            char qRookOrigSquare = queenRookFile;
+            char qRookOrigSquare = 8 * 7 + queenRookFile;
             if (pieces[qRookOrigSquare] != (Piece::BLACK | Piece::ROOK))
                 blackCanCastleQueen = false;
         }
         if (blackCanCastleKing)
         {
-            char kRookOrigSquare = kingRookFile;
+            char kRookOrigSquare = 8 * 7 + kingRookFile;
             if (pieces[kRookOrigSquare] != (Piece::BLACK | Piece::ROOK))
                 blackCanCastleKing = false;
         }
         if (blackCanCastleKing || blackCanCastleQueen)
         {
-            char origKingSquare = kingStartFile;
+            char origKingSquare = 8 * 7 + kingStartFile;
             if (pieces[origKingSquare] != (Piece::BLACK | Piece::KING))
             {
                 blackCanCastleKing = false;

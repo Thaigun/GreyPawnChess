@@ -28,7 +28,7 @@ private:
 
     void updateCastlingRights(Color color);
     void findLegalMovesForSquare(char square, std::vector<Move> &moveList) const;
-    std::vector<Move> findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes = false) const;
+    std::vector<Move> findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes = false, bool forceIncludePawnTakes = false) const;
     bool checkMoveLegality(const Move& move);
     char findSquareWithPiece(Piece piece) const;
     bool isThreatened(char square, Color byPlayer) const;
@@ -37,7 +37,7 @@ private:
     Move constructPromotionMove(const std::string& moveUCI);
     Move constructCastlingMove(char firstSquare, char secondSquare);
 
-    std::vector<Move> findPseudoPawnMoves(char square, Color player, bool onlyTakes = false) const;
+    std::vector<Move> findPseudoPawnMoves(char square, Color player, bool onlyTakes = false, bool forceIncludeTakes = false) const;
     std::vector<Move> findPseudoRookMoves(char square, Color player) const;
     std::vector<Move> findPseudoQueenMoves(char square, Color player) const;
     std::vector<Move> findPseudoBishopMoves(char square, Color player) const;
