@@ -33,6 +33,7 @@ add_executable(
     ../src/GreyPawnChess.cpp
     ../src/Move.cpp
     ../src/PGNParsing.cpp
+    ../src/TimeManagement.cpp
 )
 target_link_libraries(
     EngineTest

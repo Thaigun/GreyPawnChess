@@ -1,7 +1,7 @@
 #include "GreyPawnChess.h"
 
+#include <assert.h>
 #include <atomic>
-#include <chrono>
 #include <iostream>
 #include <math.h>
 
@@ -24,11 +24,10 @@ void GreyPawnChess::startGame()
         running = true;
     }
     workThread = std::thread([this]() {
-        // TODO: This whole function will change, this is the placeholder for picking random moves
         // Check if the match is still running.
         while (running) 
         {
-            // Update server state to our local state.
+            // Construct moves that have come since the last update.
             {
                 MTX_LOCK
                 while (moves.size() < gameState.moves.size())
@@ -38,37 +37,76 @@ void GreyPawnChess::startGame()
                 }
             }
 
+            // Apply new moves on the board.
             while (movesApplied < moves.size())
             {
                 board.applyMove(moves[moves.size() - 1]);
                 movesApplied++;
+                // We don't know the best option anymore.
+                bestOption = Move();
+                std::vector<Move> possibleMoves = board.findPossibleMoves();
+                if (possibleMoves.size() == 0)
+                    return;
             }
 
-            // If waiting for the other player, just idle.
+            // Tick the computation.
+            TimePoint tickStartTime = std::chrono::system_clock::now();
+            this->tickComputation();
+            Duration tickDuration = std::chrono::system_clock::now() - tickStartTime;
+            if (tickDuration.count() > 0.2f)
+                std::cout << "Computation tick took more than 200 milliseconds: " << tickDuration.count() * 1000 << std::endl;
+
+
+            // If waiting for the other player, we can continue computating.
             if (playerInTurn() != myColor)
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
             }
+
+            // Tick _must_ update the best option if it's our turn.
+            assert(bestOption.isValid());
+            float lastTimeLeft = float(myColor == Color::WHITE ? gameState.wTime : gameState.bTime);
+            float increment = float(myColor == Color::WHITE ? gameState.wIncrement : gameState.bIncrement);
+            Duration timeSpent = timeSinceStateSet();
+            float timeLeftMs = float(lastTimeLeft) - timeSpent.count() * 1000;
             
-            std::vector<Move> possibleMoves = board.findPossibleMoves();
-
-            if (possibleMoves.size() == 0)
-                return;
-
-            std::uniform_int_distribution<int> distribution(0, (int)possibleMoves.size() - 1);
-            int randomIdx = distribution(rng);
-            Move& selectedMove = possibleMoves[randomIdx];
-            board.applyMove(selectedMove);
-            moves.push_back(selectedMove);
-            movesApplied++;
+            if (TimeManagement::timeToMove(timeLeftMs, increment, movesApplied, timeSpent, confidence))
             {
-                MTX_LOCK
-                moveCallback(selectedMove.asUCIstr());
+                makeComputerMove(bestOption);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
+}
+
+void GreyPawnChess::tickComputation()
+{
+    // IMPLEMENT THIS TO MAKE DA STRONK ENGINE
+    if (playerInTurn() != myColor)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return;
+    }
+
+    std::vector<Move> possibleMoves = board.findPossibleMoves();
+    std::uniform_int_distribution<int> distribution(0, (int)possibleMoves.size() - 1);
+    int randomIdx = distribution(rng);
+    Move& selectedMove = possibleMoves[randomIdx];
+    // IMPLEMENTATION ENDS HERE
+
+    // These two MUST be set in this method if it's our turn.
+    bestOption = selectedMove;
+    confidence = 1.0f;
+}
+
+void GreyPawnChess::makeComputerMove(const Move& move)
+{
+    board.applyMove(move);
+    moves.push_back(move);
+    movesApplied++;
+    {
+        MTX_LOCK
+        moveCallback(move.asUCIstr());
+    }
 }
 
 void GreyPawnChess::stopGame()

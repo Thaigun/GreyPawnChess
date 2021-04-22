@@ -12,6 +12,7 @@ enum class MoveDirection : char
 
 struct Move
 {
+    Move();
     Move(char from, char to);
     Move(char from1, char to1, char from2, char to2);
     Move(char from, char to, Piece prom);
@@ -19,6 +20,8 @@ struct Move
     bool isCastling() const;
     bool isPromotion() const;
     std::string asUCIstr() const;
+    // Doesn't check if the move can happen in a game, only checks that it makes sense representation-wise.
+    bool isValid() const;
     
     char from[2];
     char to[2];

@@ -10,9 +10,7 @@
 #include "Board.h"
 #include "GameState.h"
 #include "Move.h"
-
-typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
-typedef std::chrono::duration<float> Duration;
+#include "TimeManagement.h"
 
 class GreyPawnChess 
 {
@@ -31,8 +29,11 @@ public:
 
 private:
     // Private methods
+    // Called repeatedly while the game is running. Each tick should take max 200ms.
+    void tickComputation();
     Duration timeSinceStateSet();
     Color playerInTurn();
+    void makeComputerMove(const Move& move);
 
     Board board;
     int movesApplied = 0;
@@ -43,6 +44,11 @@ private:
     std::thread workThread;
     std::mutex mtx;
     std::atomic<bool> running = false;
+
+    // Members used for tracking the engine computations.
+    Move bestOption;
+    // How sure are we this is the best move, [0.0, 1.0].
+    float confidence = 0.0f;
 
     // Members related to the setup of the game.
     Color myColor;

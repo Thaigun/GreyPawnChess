@@ -3,6 +3,12 @@
 
 #include <iostream>
 
+Move::Move()
+{
+    from[0] = -1; from[1] = -1;
+    to[0] = -1; to[1] = -1;
+}
+
 Move::Move(char from1, char to1) 
 {
     from[0] = from1; from[1] = -1;
@@ -30,6 +36,17 @@ bool Move::isCastling() const
 bool Move::isPromotion() const
 {
     return promotion != Piece::NONE;
+}
+
+bool Move::isValid() const
+{
+    if (from[0] == -1)
+        return false;
+
+    if (to[1] != -1 && from[1] == -1)
+        return false;
+
+    return true;
 }
 
 std::string Move::asUCIstr() const
