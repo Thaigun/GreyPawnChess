@@ -179,7 +179,7 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
             Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
             for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
             {
-                if (isThreatened(square, opponent))
+                if (isThreatened(stepSquare, opponent))
                 {
                     castlingThreatened = true;
                     break;
