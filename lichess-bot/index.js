@@ -134,10 +134,10 @@ function handleGameUpdate(msg, ongoingGame) {
                 // Get time control, increments and variant.
                 ongoingGame.game.setup(myColor, msg.clock.initial, msg.clock.increment, msg.variant.key);
                 ongoingGame.setupDone = true;
+                ongoingGame.game.updateGameState(msg.state);
                 ongoingGame.game.startGame((move) => {
                     makeMove(ongoingGame.id, move);
                 });
-                ongoingGame.game.updateGameState(msg.state);
             }
             break;
         case 'gameState':
@@ -150,12 +150,14 @@ function handleGameUpdate(msg, ongoingGame) {
 async function makeMove(gameId, move) {
     try {
         for (let i = 0; i < 10; i++) {
+            console.log('Making move ' + move);
             let moveResponse = await axiosInstance.post('/bot/game/' + gameId + '/move/' + move);
             if (moveResponse == 200)
                 break;
         }        
     } catch (err) {
-        console.error(err);
+        console.log('Error when sending move ' + move);
+        //console.error(err);
     }
 }
 
