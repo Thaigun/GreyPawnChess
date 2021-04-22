@@ -149,15 +149,13 @@ function handleGameUpdate(msg, ongoingGame) {
 
 async function makeMove(gameId, move) {
     try {
-        for (let i = 0; i < 10; i++) {
-            console.log('Making move ' + move);
-            let moveResponse = await axiosInstance.post('/bot/game/' + gameId + '/move/' + move);
-            if (moveResponse == 200)
-                break;
-        }        
+        console.log('Making move ' + move);
+        let moveResponse = await axiosInstance.post('/bot/game/' + gameId + '/move/' + move);
+        if (moveResponse == 200)
+            break;  
     } catch (err) {
         console.log('Error when sending move ' + move);
-        //console.error(err);
+        console.error(err);
     }
 }
 
