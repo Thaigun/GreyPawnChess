@@ -102,7 +102,7 @@ TEST(BoardTest, LegalMoves6)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 46u, 2079u, 89890u, 3894594u, 164075551u
 	};
-	for (int depth = 1; depth < 5; depth++)
+	for (int depth = 1; depth < 4; depth++)
 	{
 		unsigned int foundMoves = countPossibleMoves(board, depth);
 		ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);

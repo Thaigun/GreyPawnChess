@@ -39,6 +39,7 @@ target_link_libraries(
     EngineTest
     gtest_main
 )
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 include(GoogleTest)
 gtest_discover_tests(EngineTest)

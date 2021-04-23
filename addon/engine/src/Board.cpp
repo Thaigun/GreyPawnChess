@@ -146,11 +146,21 @@ Board Board::buildFromFEN(const std::string& fenString)
 
 std::vector<Move> Board::findPossibleMoves() const
 {
-    std::vector<Move> moves;
+    std::vector<Move> pseudoMoves;
     for (char sqr = 0; sqr < (char)64; sqr++)
     {
-        findLegalMovesForSquare(sqr, moves);
+        findPseudoLegalMoves(sqr, playerInTurn, pseudoMoves, false, false);
     }
+
+    std::vector<Move> moves;
+    for (const Move& move : pseudoMoves)
+    {
+        if (checkMoveLegality(move))
+        {
+            moves.push_back(move);
+        }
+    }
+
     return moves;
 }
 
@@ -166,38 +176,44 @@ char Board::findSquareWithPiece(Piece piece) const
 
 void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) const 
 {
-    std::vector<Move> pseudoMoves = findPseudoLegalMoves(square, playerInTurn);
-    for (Move move : pseudoMoves)
+    std::vector<Move> pseudoMoves;
+    findPseudoLegalMoves(square, playerInTurn, pseudoMoves);
+    for (const Move& move : pseudoMoves)
     {
-        Board testBoard(*this);
-        
-        if (move.isCastling()) 
-        {
-            char startSqr = std::min(move.from[0], move.to[0]);
-            char endSqr = std::max(move.to[0], move.from[0]);
-            bool castlingThreatened = false;
-            Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
-            for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
-            {
-                if (isThreatened(stepSquare, opponent))
-                {
-                    castlingThreatened = true;
-                    break;
-                }
-            }
-            if (castlingThreatened)
-                continue;
-        }
-
-        testBoard.applyMove(move);
-        // Check if the current player in turn is in check if the move was applied.
-        Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
-        char kingSquare = testBoard.findSquareWithPiece(currentPlayerColor | Piece::KING);
-        if (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn))
+        if (checkMoveLegality(move))
         {
             moveList.push_back(move);
         }
     }
+}
+
+bool Board::checkMoveLegality(const Move& move) const
+{
+    Board testBoard(*this);
+        
+    if (move.isCastling()) 
+    {
+        char startSqr = std::min(move.from[0], move.to[0]);
+        char endSqr = std::max(move.to[0], move.from[0]);
+        bool castlingThreatened = false;
+        Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
+        for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
+        {
+            if (isThreatened(stepSquare, opponent))
+            {
+                castlingThreatened = true;
+                break;
+            }
+        }
+        if (castlingThreatened)
+            return false;
+    }
+
+    testBoard.applyMove(move);
+    // Check if the current player in turn is in check if the move was applied.
+    Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    char kingSquare = testBoard.findSquareWithPiece(currentPlayerColor | Piece::KING);
+    return (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn));
 }
 
 bool Board::areSameColor(Piece p1, Piece p2)
@@ -232,12 +248,11 @@ char Board::stepSquareInDirection(char square, MoveDirection direction)
     return square + char(direction);
 }
 
-std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onlyTakes, bool forceIncludeTakes) const
+void Board::findPseudoPawnMoves(char square, Color player, std::vector<Move>& moves, bool onlyTakes, bool forceIncludeTakes) const
 {
     MoveDirection pawnDirection = player == Color::WHITE ? MoveDirection::N : MoveDirection::S;
     char nextSquare = stepSquareInDirection(square, pawnDirection);
     bool promotion = nextSquare < 8 || nextSquare >= 7 * 8;
-    std::vector<Move> moves;
 
     assert(square < 7 * 8 && square >= 8 && "Pawn is never on the last rank.");
 
@@ -297,12 +312,10 @@ std::vector<Move> Board::findPseudoPawnMoves(char square, Color player, bool onl
             }
         }
     }   
-    return moves; 
 }
 
-std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, int maxSteps) const
+void Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps) const
 {
-    std::vector<Move> moves;
     for (MoveDirection dir : directions) 
     {
         char nextSquare = stepSquareInDirection(square, dir);
@@ -322,10 +335,9 @@ std::vector<Move> Board::findDirectionalPseudoMoves(char square, const std::vect
             break;
         }
     }
-    return moves;
 }
 
-std::vector<Move> Board::findPseudoRookMoves(char square, Color player) const
+void Board::findPseudoRookMoves(char square, Color player, std::vector<Move>& moves) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -333,10 +345,10 @@ std::vector<Move> Board::findPseudoRookMoves(char square, Color player) const
         MoveDirection::E,
         MoveDirection::W
     };
-    return findDirectionalPseudoMoves(square, directions);
+    findDirectionalPseudoMoves(square, directions, moves);
 }
 
-std::vector<Move> Board::findPseudoQueenMoves(char square, Color player) const
+void Board::findPseudoQueenMoves(char square, Color player, std::vector<Move>& moves) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -348,12 +360,11 @@ std::vector<Move> Board::findPseudoQueenMoves(char square, Color player) const
         MoveDirection::SW,
         MoveDirection::NW
     };
-    return findDirectionalPseudoMoves(square, directions);
+    findDirectionalPseudoMoves(square, directions, moves);
 }
 
-std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) const
+void Board::findPseudoCastlingMoves(char square, Color player, std::vector<Move>& moves) const
 {
-    std::vector<Move> moves;
     char rank = player == Color::WHITE ? 0 : 7;
     bool kingSideAvailable = player == Color::WHITE ? whiteCanCastleKing : blackCanCastleKing;
     bool queenSideAvailable = player == Color::WHITE ? whiteCanCastleQueen : blackCanCastleQueen;
@@ -402,10 +413,9 @@ std::vector<Move> Board::findPseudoCastlingMoves(char square, Color player) cons
         if (queenCastleFree)
             moves.push_back(Move(square, char(rank * 8 + 2), rookSquare, char(rank * 8 + 3)));
     }
-    return moves;
 }
 
-std::vector<Move> Board::findPseudoKingMoves(char square, Color player) const
+void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& moves) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -417,13 +427,11 @@ std::vector<Move> Board::findPseudoKingMoves(char square, Color player) const
         MoveDirection::SW,
         MoveDirection::NW
     };
-    std::vector<Move> moves = findDirectionalPseudoMoves(square, directions, 1);
-    std::vector<Move> castlingMoves = findPseudoCastlingMoves(square, player);
-    moves.insert(moves.end(), castlingMoves.begin(), castlingMoves.end());
-    return moves;
+    findDirectionalPseudoMoves(square, directions, moves, 1);
+    findPseudoCastlingMoves(square, player, moves);
 }
 
-std::vector<Move> Board::findPseudoBishopMoves(char square, Color player) const 
+void Board::findPseudoBishopMoves(char square, Color player, std::vector<Move>& moves) const 
 {
     std::vector<MoveDirection> directions {
         MoveDirection::NE,
@@ -431,12 +439,11 @@ std::vector<Move> Board::findPseudoBishopMoves(char square, Color player) const
         MoveDirection::SW,
         MoveDirection::NW
     };
-    return findDirectionalPseudoMoves(square, directions);    
+    findDirectionalPseudoMoves(square, directions, moves);    
 }
 
-std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
+void Board::findPseudoKnightMoves(char square, Color player, std::vector<Move>& moves) const
 {
-    std::vector<Move> moves;
     char file = square % 8;
     char rank = square / 8;
     char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
@@ -453,44 +460,41 @@ std::vector<Move> Board::findPseudoKnightMoves(char square, Color player) const
         if (targetSquarePiece == Piece::NONE || !areSameColor(pieces[square], targetSquarePiece))
             moves.push_back(Move(square, moveSquare));
     }
-    return moves;
 }
 
-std::vector<Move> Board::findPseudoLegalMoves(char square, Color forPlayer, bool pawnOnlyTakes, bool forceIncludePawnTakes) const
+void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>& pseudoLegalMoves, bool pawnOnlyTakes, bool forceIncludePawnTakes) const
 {
-    std::vector<Move> moves;
     Piece piece = pieces[square];
     Piece currentPlayer = forPlayer == Color::WHITE ? Piece::WHITE : Piece::BLACK;
     if (!(piece & currentPlayer))
     {
-        return moves;
+        return;
     }
     
     if (!!(piece & Piece::PAWN))
     {
-        return findPseudoPawnMoves(square, forPlayer, pawnOnlyTakes, forceIncludePawnTakes);
+        return findPseudoPawnMoves(square, forPlayer, pseudoLegalMoves, pawnOnlyTakes, forceIncludePawnTakes);
     }
     else if (!!(piece & Piece::ROOK))
     {
-        return findPseudoRookMoves(square, forPlayer);
+        return findPseudoRookMoves(square, forPlayer, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::QUEEN))
     {
-        return findPseudoQueenMoves(square, forPlayer);
+        return findPseudoQueenMoves(square, forPlayer, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::KING))
     {
-        return findPseudoKingMoves(square, forPlayer);
+        return findPseudoKingMoves(square, forPlayer, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::BISHOP))
     {
-        return findPseudoBishopMoves(square, forPlayer);
+        return findPseudoBishopMoves(square, forPlayer, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::KNIGHT))
     {
-        return findPseudoKnightMoves(square, forPlayer);
+        return findPseudoKnightMoves(square, forPlayer, pseudoLegalMoves);
     }
-    return moves;
 }
 
 bool Board::isThreatened(char square, Color byPlayer) const
@@ -499,7 +503,8 @@ bool Board::isThreatened(char square, Color byPlayer) const
     // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
     for (char i = 0; i < 64; i++)
     {
-        std::vector<Move> moves = findPseudoLegalMoves(i, byPlayer, true, true);
+        std::vector<Move> moves;
+        findPseudoLegalMoves(i, byPlayer, moves, true, true);
         for (const Move& move : moves)
         {
             if (move.to[0] == square)
