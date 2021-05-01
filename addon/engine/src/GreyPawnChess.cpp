@@ -9,6 +9,11 @@
 
 #define MTX_LOCK std::unique_lock<std::mutex> lock(mtx);
 
+GreyPawnChess::GreyPawnChess()
+    : rng(std::chrono::system_clock::now().time_since_epoch().count())
+{
+}
+
 void GreyPawnChess::setup(char color, int timeMs, int incrementMs, const std::string& variant) 
 {
     MTX_LOCK

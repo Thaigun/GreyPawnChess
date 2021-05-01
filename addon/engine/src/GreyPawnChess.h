@@ -15,6 +15,8 @@
 class GreyPawnChess 
 {
 public:
+    GreyPawnChess();
+
     // Setup the game
     void setup(char color, int timeMs, int incrementMs, const std::string& variant);
     // Starts calculating the best moves, i.e. playing the match
