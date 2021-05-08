@@ -18,7 +18,9 @@ public:
     void applyMove(const Move& move);
     Piece getSquare(const char* sqr) const;
     Piece getSquare(char file, char rank) const;
-
+    Color getCurrentPlayer();
+    bool isCheck();
+    bool isMate();
     std::string getFEN() const;
 
 private:
@@ -47,7 +49,7 @@ private:
     void findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps = 1000000) const;
 
     // Squares are in order from white's perspective left to right, bottom to top. 
-    // a1, b1, c1 ... a1, b2, c2
+    // a1, b1, c1 ... a2, b2, c2
     Piece pieces[64];
     Color playerInTurn = Color::WHITE;
     // These are saved in order to support Chess960 in the future.

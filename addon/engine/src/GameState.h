@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ enum class GameStatus
     VARIANT_END = 60
 };
 
-enum Color 
+enum class Color : uint8_t
 {
     WHITE, BLACK, NONE
 };

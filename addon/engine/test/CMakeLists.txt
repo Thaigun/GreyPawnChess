@@ -31,8 +31,11 @@ add_executable(
     ../src/BoardFuncs.cpp
     ../src/GameState.cpp
     ../src/GreyPawnChess.cpp
+    ../src/MonteCarloNode.cpp
+    ../src/MonteCarloTree.cpp
     ../src/Move.cpp
     ../src/PGNParsing.cpp
+    ../src/Random.cpp
     ../src/TimeManagement.cpp
 )
 target_link_libraries(

@@ -718,3 +718,21 @@ Piece Board::getSquare(char file, char rank) const
 {
     return pieces[8 * rank + file];
 }
+
+Color Board::getCurrentPlayer()
+{
+    return playerInTurn;
+}
+
+bool Board::isCheck()
+{
+    Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
+    Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    char kingSquare = findSquareWithPiece(currentPlayerColor | Piece::KING);
+    return isThreatened(kingSquare, opponentColor);
+}
+
+bool Board::isMate()
+{
+    return isCheck() && findPossibleMoves().size() == 0;
+}

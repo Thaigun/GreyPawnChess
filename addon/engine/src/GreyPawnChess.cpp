@@ -6,18 +6,14 @@
 #include <math.h>
 
 #include "GameState.h"
+#include "Random.h"
 
 #define MTX_LOCK std::unique_lock<std::mutex> lock(mtx);
-
-GreyPawnChess::GreyPawnChess()
-    : rng(std::chrono::system_clock::now().time_since_epoch().count())
-{
-}
 
 void GreyPawnChess::setup(char color, int timeMs, int incrementMs, const std::string& variant) 
 {
     MTX_LOCK
-    myColor = color == 'w' ? WHITE : BLACK;
+    myColor = color == 'w' ? Color::WHITE : Color::BLACK;
     gameState = GameState(timeMs, incrementMs);
     this->variant = variant;
 }
@@ -47,8 +43,6 @@ void GreyPawnChess::startGame()
             {
                 board.applyMove(moves[moves.size() - 1]);
                 movesApplied++;
-                // We don't know the best option anymore.
-                bestOption = Move();
                 std::vector<Move> possibleMoves = board.findPossibleMoves();
                 if (possibleMoves.size() == 0)
                     return;
@@ -61,7 +55,6 @@ void GreyPawnChess::startGame()
             if (tickDuration.count() > 0.2f)
                 std::cout << "Computation tick took more than 200 milliseconds: " << tickDuration.count() * 1000 << std::endl;
 
-
             // If waiting for the other player, we can continue computating.
             if (playerInTurn() != myColor)
             {
@@ -69,7 +62,6 @@ void GreyPawnChess::startGame()
             }
 
             // Tick _must_ update the best option if it's our turn.
-            assert(bestOption.isValid());
             float lastTimeLeft = float(myColor == Color::WHITE ? gameState.wTime : gameState.bTime);
             float increment = float(myColor == Color::WHITE ? gameState.wIncrement : gameState.bIncrement);
             Duration timeSpent = timeSinceStateSet();
@@ -77,7 +69,7 @@ void GreyPawnChess::startGame()
             
             if (TimeManagement::timeToMove(timeLeftMs, increment, movesApplied, timeSpent, confidence))
             {
-                makeComputerMove(bestOption);
+                makeComputerMove(monteCarloTree.getBestOption());
             }
         }
     });
@@ -86,20 +78,16 @@ void GreyPawnChess::startGame()
 void GreyPawnChess::tickComputation()
 {
     // IMPLEMENT THIS TO MAKE DA STRONK ENGINE
-    if (playerInTurn() != myColor)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        return;
-    }
 
-    std::vector<Move> possibleMoves = board.findPossibleMoves();
-    std::uniform_int_distribution<int> distribution(0, (int)possibleMoves.size() - 1);
-    int randomIdx = distribution(rng);
-    Move& selectedMove = possibleMoves[randomIdx];
+    // Run a few iterations of the Monte Carlo search.
+    for (int i = 0; i < 100; i++)
+    {
+        monteCarloTree.runIteration();
+    }
+    
     // IMPLEMENTATION ENDS HERE
 
-    // These two MUST be set in this method if it's our turn.
-    bestOption = selectedMove;
+    // This MUST be set in this method if it's our turn.
     confidence = 1.0f;
 }
 
@@ -148,7 +136,7 @@ Duration GreyPawnChess::timeSinceStateSet()
 Color GreyPawnChess::playerInTurn() 
 {
     if (gameState.finishedStatus())
-        return NONE;
+        return Color::NONE;
 
-    return moves.size() % 2 == 0 ? WHITE : BLACK;
+    return moves.size() % 2 == 0 ? Color::WHITE : Color::BLACK;
 }
