@@ -34,18 +34,12 @@ void GreyPawnChess::startGame()
                 while (moves.size() < gameState.moves.size())
                 {
                     const std::string newMove = gameState.moves[moves.size()];
-                    moves.push_back(board.constructMove(newMove));
+                    Move move = board.constructMove(newMove);
+                    applyMove(move);
+                    std::vector<Move> possibleMoves = board.findPossibleMoves();
+                    if (possibleMoves.size() == 0)
+                        return;
                 }
-            }
-
-            // Apply new moves on the board.
-            while (movesApplied < moves.size())
-            {
-                board.applyMove(moves[moves.size() - 1]);
-                movesApplied++;
-                std::vector<Move> possibleMoves = board.findPossibleMoves();
-                if (possibleMoves.size() == 0)
-                    return;
             }
 
             // Tick the computation.
@@ -67,9 +61,12 @@ void GreyPawnChess::startGame()
             Duration timeSpent = timeSinceStateSet();
             float timeLeftMs = float(lastTimeLeft) - timeSpent.count() * 1000;
             
-            if (TimeManagement::timeToMove(timeLeftMs, increment, movesApplied, timeSpent, confidence))
+            if (TimeManagement::timeToMove(timeLeftMs, increment, (int)moves.size(), timeSpent, confidence))
             {
-                makeComputerMove(monteCarloTree.getBestOption());
+                makeComputerMove(monteCarloTree.highestWinrateMove());
+                std::vector<Move> possibleMoves = board.findPossibleMoves();
+                if (possibleMoves.size() == 0)
+                    return;
             }
         }
     });
@@ -82,7 +79,8 @@ void GreyPawnChess::tickComputation()
     // Run a few iterations of the Monte Carlo search.
     for (int i = 0; i < 100; i++)
     {
-        monteCarloTree.runIteration();
+        Board iterationBoard = board;
+        monteCarloTree.runIteration(iterationBoard, monteCarloTree.nodeVisits());
     }
     
     // IMPLEMENTATION ENDS HERE
@@ -91,11 +89,16 @@ void GreyPawnChess::tickComputation()
     confidence = 1.0f;
 }
 
+void GreyPawnChess::applyMove(const Move& move)
+{
+    moves.push_back(move);
+    board.applyMove(move);
+    monteCarloTree = std::move(monteCarloTree.getNodeForMove(move));
+}
+
 void GreyPawnChess::makeComputerMove(const Move& move)
 {
-    board.applyMove(move);
-    moves.push_back(move);
-    movesApplied++;
+    applyMove(move);
     {
         MTX_LOCK
         moveCallback(move.asUCIstr());

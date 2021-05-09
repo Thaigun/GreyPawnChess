@@ -16,6 +16,7 @@ public:
     MonteCarloNode* highestUCB1Child(unsigned int totalVisits, Color player, const Move* populateMove);
     unsigned int nodeVisits() const;
     Move highestWinrateMove() const;
+    MonteCarloNode& getNodeForMove(const Move& move);
 
 private:
     std::vector<Move> possibleMoves;

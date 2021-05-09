@@ -8,7 +8,11 @@ namespace TimeManagement
         if (confidence > 0.9f)
             return true;
 
-        if (timeUsed.count() * 1000 > incrementMs)
+        if (timeUsed.count() * 1000 < incrementMs)
+            return false;
+
+        // Use no more than 5% of remaining time.
+        if (timeUsed.count() * 1000 > timeLeftMs * 0.05f)
             return true;
 
         return false;

@@ -17,6 +17,16 @@ struct Move
     Move(char from1, char to1, char from2, char to2);
     Move(char from, char to, Piece prom);
 
+    bool operator==(const Move& other)
+    {
+        return 
+            from[0] == other.from[0] &&
+            from[1] == other.from[1] &&
+            to[0] == other.to[0] && 
+            to[1] == other.to[1] &&
+            promotion == other.promotion;
+    } 
+
     bool isCastling() const;
     bool isPromotion() const;
     std::string asUCIstr() const;

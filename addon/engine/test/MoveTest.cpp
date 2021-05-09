@@ -37,3 +37,17 @@ TEST(MoveTest, EnPassantMove)
 	EXPECT_FALSE(enPassantMove.isPromotion());
 	EXPECT_EQ(enPassantMove.asUCIstr(), "f4g3");
 }
+
+TEST(MoveTest, EqualMoves)
+{
+	Move move1(12, 20);
+	Move move2(12, 20);
+	EXPECT_TRUE(move1 == move2);
+}
+
+TEST(MoveTest, InequalMoves)
+{
+	Move move1(52, 60, Piece::KNIGHT);
+	Move move2(52, 60, Piece::QUEEN);
+	EXPECT_FALSE(move1 == move2);
+}

@@ -2,13 +2,14 @@
 
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "Board.h"
 #include "GameState.h"
-#include "MonteCarloTree.h"
+#include "MonteCarloNode.h"
 #include "Move.h"
 #include "TimeManagement.h"
 
@@ -33,13 +34,13 @@ private:
     void tickComputation();
     Duration timeSinceStateSet();
     Color playerInTurn();
+    void applyMove(const Move& move);
     void makeComputerMove(const Move& move);
 
     Board board;
-    int movesApplied = 0;
     std::vector<Move> moves;
 
-    MonteCarloTree monteCarloTree;
+    MonteCarloNode monteCarloTree;
     
     // Members used to manage the worker thread and by the worker thread.
     std::function<void(std::string)> moveCallback;

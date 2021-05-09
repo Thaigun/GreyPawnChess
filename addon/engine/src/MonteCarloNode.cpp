@@ -133,3 +133,23 @@ Move MonteCarloNode::highestWinrateMove() const
     }
     return bestMove;
 }
+
+MonteCarloNode& MonteCarloNode::getNodeForMove(const Move& move)
+{
+    // If this node has not been expanded yet, just return a new node.
+    if (isLeaf())
+    {
+        return MonteCarloNode();
+    }
+
+    for (int i = 0; i < childNodes.size(); i++)
+    {
+        if (possibleMoves[i] == move)
+        {
+            return childNodes[i];
+        }
+    }
+
+    // If, for some reason matching node is not found, return a new, empty node.
+    return MonteCarloNode();
+}

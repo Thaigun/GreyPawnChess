@@ -15,15 +15,20 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+if (MSVC)
+    # warning level 4 and all warnings as errors
+    add_compile_options(/W4 /WX)
+else()
+    # lots of warnings and all warnings as errors
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 # This setup seems and feels wrong and there is probably a better way to do it.
 # It was hacked together by a CMake noob based on derstood copy-pasta snippets.
 add_executable(
     EngineTest
     # Test files
     BoardTest.cpp
-    BoardFuncsTest.cpp
-    GameStateTest.cpp
-    GreyPawnChessTest.cpp
     MoveTest.cpp
     PieceTest.cpp
     # Engine files
@@ -32,7 +37,6 @@ add_executable(
     ../src/GameState.cpp
     ../src/GreyPawnChess.cpp
     ../src/MonteCarloNode.cpp
-    ../src/MonteCarloTree.cpp
     ../src/Move.cpp
     ../src/PGNParsing.cpp
     ../src/Random.cpp
