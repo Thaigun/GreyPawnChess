@@ -17,7 +17,6 @@ unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool div
 	std::vector<Move> possibleMoves = board.findPossibleMoves();
 	for (const Move& move : possibleMoves)
 	{
-		
 		Board nextBoard = board;
 		nextBoard.applyMove(move);
 		unsigned int nextBoardMoves = countPossibleMoves(nextBoard, depth - 1);

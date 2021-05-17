@@ -10,12 +10,12 @@
 
 #define MTX_LOCK std::unique_lock<std::mutex> lock(mtx);
 
-void GreyPawnChess::setup(char color, int timeMs, int incrementMs, const std::string& variant) 
+void GreyPawnChess::setup(char color, int timeMs, int incrementMs, const std::string& setupVariant) 
 {
     MTX_LOCK
     myColor = color == 'w' ? Color::WHITE : Color::BLACK;
     gameState = GameState(timeMs, incrementMs);
-    this->variant = variant;
+    variant = setupVariant;
 }
 
 void GreyPawnChess::startGame()
@@ -77,10 +77,9 @@ void GreyPawnChess::tickComputation()
     // IMPLEMENT THIS TO MAKE DA STRONK ENGINE
 
     // Run a few iterations of the Monte Carlo search.
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 5; i++)
     {
-        Board iterationBoard = board;
-        monteCarloTree.runIteration(iterationBoard, monteCarloTree.nodeVisits());
+        monteCarloTree.runIteration(board, monteCarloTree.nodeVisits());
     }
     
     // IMPLEMENTATION ENDS HERE

@@ -337,7 +337,7 @@ void Board::findDirectionalPseudoMoves(char square, const std::vector<MoveDirect
     }
 }
 
-void Board::findPseudoRookMoves(char square, Color player, std::vector<Move>& moves) const
+void Board::findPseudoRookMoves(char square, std::vector<Move>& moves) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -348,7 +348,7 @@ void Board::findPseudoRookMoves(char square, Color player, std::vector<Move>& mo
     findDirectionalPseudoMoves(square, directions, moves);
 }
 
-void Board::findPseudoQueenMoves(char square, Color player, std::vector<Move>& moves) const
+void Board::findPseudoQueenMoves(char square, std::vector<Move>& moves) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -368,7 +368,6 @@ void Board::findPseudoCastlingMoves(char square, Color player, std::vector<Move>
     char rank = player == Color::WHITE ? 0 : 7;
     bool kingSideAvailable = player == Color::WHITE ? whiteCanCastleKing : blackCanCastleKing;
     bool queenSideAvailable = player == Color::WHITE ? whiteCanCastleQueen : blackCanCastleQueen;
-    char currentFile = square % 8;
     
     if (kingSideAvailable)
     {   
@@ -431,7 +430,7 @@ void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& mo
     findPseudoCastlingMoves(square, player, moves);
 }
 
-void Board::findPseudoBishopMoves(char square, Color player, std::vector<Move>& moves) const 
+void Board::findPseudoBishopMoves(char square, std::vector<Move>& moves) const 
 {
     std::vector<MoveDirection> directions {
         MoveDirection::NE,
@@ -442,7 +441,7 @@ void Board::findPseudoBishopMoves(char square, Color player, std::vector<Move>& 
     findDirectionalPseudoMoves(square, directions, moves);    
 }
 
-void Board::findPseudoKnightMoves(char square, Color player, std::vector<Move>& moves) const
+void Board::findPseudoKnightMoves(char square, std::vector<Move>& moves) const
 {
     char file = square % 8;
     char rank = square / 8;
@@ -477,11 +476,11 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
     }
     else if (!!(piece & Piece::ROOK))
     {
-        return findPseudoRookMoves(square, forPlayer, pseudoLegalMoves);
+        return findPseudoRookMoves(square, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::QUEEN))
     {
-        return findPseudoQueenMoves(square, forPlayer, pseudoLegalMoves);
+        return findPseudoQueenMoves(square, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::KING))
     {
@@ -489,17 +488,16 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
     }
     else if (!!(piece & Piece::BISHOP))
     {
-        return findPseudoBishopMoves(square, forPlayer, pseudoLegalMoves);
+        return findPseudoBishopMoves(square, pseudoLegalMoves);
     }
     else if (!!(piece & Piece::KNIGHT))
     {
-        return findPseudoKnightMoves(square, forPlayer, pseudoLegalMoves);
+        return findPseudoKnightMoves(square, pseudoLegalMoves);
     }
 }
 
 bool Board::isThreatened(char square, Color byPlayer) const
 {
-    Piece targetPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
     // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
     for (char i = 0; i < 64; i++)
     {
@@ -588,7 +586,6 @@ void Board::applyMove(const Move& move)
     for (int i = 0; i < 2; i++)
     {
         char from = move.from[i];
-        char to = move.to[i];
         if (from < 0)
             continue;
 
@@ -625,7 +622,7 @@ void Board::applyMove(const Move& move)
             pieces[to] = movePiece;
     }
 
-    updateCastlingRights(playerInTurn);
+    updateCastlingRights();
 
     // Also forcefully update the castling rights if this move was a castling. Otherwise
     // weird scenarios are possible in 960 if the king stays still while castling.
@@ -647,7 +644,7 @@ void Board::applyMove(const Move& move)
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
 }
 
-void Board::updateCastlingRights(Color color)
+void Board::updateCastlingRights()
 {
     // Update for white
     {

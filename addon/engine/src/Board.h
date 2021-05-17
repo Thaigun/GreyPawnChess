@@ -28,7 +28,7 @@ private:
     void setSquare(char sqr, Piece data);
     static char stepSquareInDirection(char square, MoveDirection direction);
 
-    void updateCastlingRights(Color color);
+    void updateCastlingRights();
     void findLegalMovesForSquare(char square, std::vector<Move> &moveList) const;
     bool checkMoveLegality(const Move& move) const;
     char findSquareWithPiece(Piece piece) const;
@@ -40,12 +40,12 @@ private:
 
     void findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>& pseudoMoves, bool pawnOnlyTakes = false, bool forceIncludePawnTakes = false) const;
     void findPseudoPawnMoves(char square, Color player, std::vector<Move>& moves, bool onlyTakes = false, bool forceIncludeTakes = false) const;
-    void findPseudoRookMoves(char square, Color player, std::vector<Move>& moves) const;
-    void findPseudoQueenMoves(char square, Color player, std::vector<Move>& moves) const;
-    void findPseudoBishopMoves(char square, Color player, std::vector<Move>& moves) const;
+    void findPseudoRookMoves(char square, std::vector<Move>& moves) const;
+    void findPseudoQueenMoves(char square, std::vector<Move>& moves) const;
+    void findPseudoBishopMoves(char square, std::vector<Move>& moves) const;
     void findPseudoCastlingMoves(char square, Color player, std::vector<Move>& moves) const;
     void findPseudoKingMoves(char square, Color player, std::vector<Move>& moves) const;
-    void findPseudoKnightMoves(char square, Color player, std::vector<Move>& moves) const;
+    void findPseudoKnightMoves(char square, std::vector<Move>& moves) const;
     void findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps = 1000000) const;
 
     // Squares are in order from white's perspective left to right, bottom to top. 

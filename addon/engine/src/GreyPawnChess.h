@@ -17,7 +17,7 @@ class GreyPawnChess
 {
 public:
     // Setup the game
-    void setup(char color, int timeMs, int incrementMs, const std::string& variant);
+    void setup(char color, int timeMs, int incrementMs, const std::string& setupVariant);
     // Starts calculating the best moves, i.e. playing the match
     void startGame();
     // Indicates that the game should stop and waits for the worker thread to stop.

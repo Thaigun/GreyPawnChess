@@ -1,19 +1,27 @@
 #include "MonteCarloNode.h"
 
+#include <assert.h>
 #include <cmath>
 #include <limits>
 #include <vector>
 
+#include "Board.h"
 #include "Random.h"
 
-Color MonteCarloNode::runIteration(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
+Color MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
+{
+    Board iterationBoard = board;
+    return runIterationOnBoard(iterationBoard, totalSimCount, maxMoveCount);
+}
+
+Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
 {
     Color nodePlayerColor = board.getCurrentPlayer();
     if (!isLeaf())
     {
         nodeIterations++;
         Move bestMove;
-        MonteCarloNode* bestChild = highestUCB1Child(totalSimCount, board.getCurrentPlayer(), &bestMove);
+        MonteCarloNode* bestChild = highestUCB1Child(totalSimCount, &bestMove);
         board.applyMove(bestMove);
         Color winner = bestChild->runIteration(board, totalSimCount, maxMoveCount - 1);
         if (winner == nodePlayerColor)
@@ -83,7 +91,7 @@ bool MonteCarloNode::isLeaf()
     return !childNodes.size();
 }
 
-float MonteCarloNode::UCB1(unsigned int totalVisits, Color player)
+float MonteCarloNode::UCB1(unsigned int totalVisits)
 {
     if (!nodeIterations)
     {
@@ -95,13 +103,13 @@ float MonteCarloNode::UCB1(unsigned int totalVisits, Color player)
     return exploitationFactor + explorationFactor;
 }
 
-MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, Color player, const Move* populateMove)
+MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, const Move* populateMove)
 {
     float bestChildUCB1 = FLT_MIN;
     MonteCarloNode* bestChild = nullptr;
     for (int i = 0; i < childNodes.size(); i++)
     {
-        float thisChildUCB1 = childNodes[i].UCB1(totalVisits, player);
+        float thisChildUCB1 = childNodes[i].UCB1(totalVisits);
         if (thisChildUCB1 > bestChildUCB1)
         {
             populateMove = &possibleMoves[i];
@@ -124,6 +132,9 @@ Move MonteCarloNode::highestWinrateMove() const
     Move bestMove;
     for (int i = 0; i < childNodes.size(); i++)
     {
+        if (childNodes[i].nodeIterations == 0u)
+            continue;
+
         float childWinrate = childNodes[i].points / childNodes[i].nodeIterations;
         if (childWinrate > bestWinRate)
         {
@@ -131,10 +142,11 @@ Move MonteCarloNode::highestWinrateMove() const
             bestMove = possibleMoves[i];
         }
     }
+    assert(bestWinRate != FLT_MIN && "Shouldn't call this function if no iterations have been run.");
     return bestMove;
 }
 
-MonteCarloNode& MonteCarloNode::getNodeForMove(const Move& move)
+MonteCarloNode MonteCarloNode::getNodeForMove(const Move& move)
 {
     // If this node has not been expanded yet, just return a new node.
     if (isLeaf())
