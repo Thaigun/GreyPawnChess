@@ -11,10 +11,10 @@
 Color MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
 {
     Board iterationBoard = board;
-    return runIterationOnBoard(iterationBoard, totalSimCount, maxMoveCount);
+    return runIterationOnBoard(iterationBoard, totalSimCount, maxMoveCount, true);
 }
 
-Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
+Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot)
 {
     Color nodePlayerColor = board.getCurrentPlayer();
     if (!isLeaf())
@@ -23,7 +23,7 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
         Move bestMove;
         MonteCarloNode* bestChild = highestUCB1Child(totalSimCount, &bestMove);
         board.applyMove(bestMove);
-        Color winner = bestChild->runIteration(board, totalSimCount, maxMoveCount - 1);
+        Color winner = bestChild->runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
         if (winner == nodePlayerColor)
             points += 1.0f;
         else if (winner == Color::NONE)
@@ -47,8 +47,8 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
         return winner;
     }
 
-    // Node has not been simulated yet.
-    if (nodeIterations++ == 0u)
+    // Node has not been simulated yet. If this is a root node, skip simulation.
+    if (nodeIterations++ == 0u && !isRoot)
     {
         unsigned int movesLeft = maxMoveCount;
         Color simulationWinner = Color::NONE;
@@ -83,7 +83,7 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
     possibleMoves = std::move(initialMoves);
     childNodes.resize(possibleMoves.size());
     board.applyMove(possibleMoves[0]);
-    return childNodes[0].runIteration(board, totalSimCount, maxMoveCount - 1);
+    return childNodes[0].runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
 }
 
 bool MonteCarloNode::isLeaf()
@@ -103,7 +103,7 @@ float MonteCarloNode::UCB1(unsigned int totalVisits)
     return exploitationFactor + explorationFactor;
 }
 
-MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, const Move* populateMove)
+MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, Move* populateMove)
 {
     float bestChildUCB1 = FLT_MIN;
     MonteCarloNode* bestChild = nullptr;
@@ -112,7 +112,7 @@ MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, const
         float thisChildUCB1 = childNodes[i].UCB1(totalVisits);
         if (thisChildUCB1 > bestChildUCB1)
         {
-            populateMove = &possibleMoves[i];
+            *populateMove = possibleMoves[i];
             bestChild = &childNodes[i];
             if (thisChildUCB1 == FLT_MAX)
                 return bestChild;
