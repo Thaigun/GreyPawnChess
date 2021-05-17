@@ -25,10 +25,12 @@ endif()
 
 # This setup seems and feels wrong and there is probably a better way to do it.
 # It was hacked together by a CMake noob based on derstood copy-pasta snippets.
+# Keep them in alphabetical order!
 add_executable(
     EngineTest
     # Test files
     BoardTest.cpp
+    MonteCarloNodeTest.cpp
     MoveTest.cpp
     PieceTest.cpp
     # Engine files
