@@ -18,9 +18,10 @@ public:
     void applyMove(const Move& move);
     Piece getSquare(const char* sqr) const;
     Piece getSquare(char file, char rank) const;
-    Color getCurrentPlayer();
-    bool isCheck();
-    bool isMate();
+    Color getCurrentPlayer() const;
+    bool isCheck() const;
+    bool isMate() const;
+    bool insufficientMaterial() const;
     std::string getFEN() const;
 
 private:

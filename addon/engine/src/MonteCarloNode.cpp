@@ -60,10 +60,17 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
             {
                 if (board.isCheck())
                 {
-                    // Mate
+                    // Checkmate
                     simulationWinner = board.getCurrentPlayer() == Color::BLACK ? Color::WHITE : Color::BLACK;
                     break;
                 }
+                // Stalemate
+                simulationWinner = Color::NONE;
+                break;
+            }
+            if (board.insufficientMaterial())
+            {
+                // Insufficient material
                 simulationWinner = Color::NONE;
                 break;
             }

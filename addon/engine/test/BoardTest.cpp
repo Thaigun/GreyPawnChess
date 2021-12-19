@@ -36,7 +36,7 @@ TEST(BoardTest, LegalMoves1)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 20u, 400u, 8902u, 197281u, 4865609u
 	};
-	int depth = 5;
+	int depth = 4;
 	unsigned int foundMoves = countPossibleMoves(board, depth);
 	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
 }
@@ -58,7 +58,7 @@ TEST(BoardTest, LegalMoves3)
 	unsigned int expectedMoveCounts[7] = {
 		1u, 14u, 191u, 2812u, 43238u, 674624u, 11030083u
 	};
-	int depth = 5;
+	int depth = 4;
 	unsigned int foundMoves = countPossibleMoves(board, depth);
 	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
 }
@@ -69,7 +69,7 @@ TEST(BoardTest, LegalMoves4)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 6u, 264u, 9467u, 422333u, 15833292u
 	};
-	int depth = 4;
+	int depth = 3;
 	unsigned int foundMoves = countPossibleMoves(board, depth);
 	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
 }
@@ -94,4 +94,51 @@ TEST(BoardTest, LegalMoves6)
 	int depth = 3;
 	unsigned int foundMoves = countPossibleMoves(board, depth);
 	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+}
+
+TEST(BoardTest, InsufficientMaterial)
+{
+	// Rooks make the material sufficient
+	Board board = Board::buildFromFEN("8/2k5/8/8/5R2/8/4K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/2k5/8/8/5R2/8/3RK3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/2k5/3r4/8/8/8/3RK3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	
+	// A pawn makes the material sufficient
+	board = Board::buildFromFEN("8/2k5/5P2/8/8/8/4K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/2k5/8/8/8/8/1p2K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/2k5/8/8/8/1P6/1p2K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+
+	// Test different sufficient bishop stups
+	board = Board::buildFromFEN("7B/2k5/8/8/8/8/B3K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("7b/2k5/8/8/8/8/B3K3/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	
+	// Test insufficient bishop stups
+	board = Board::buildFromFEN("8/2k5/8/8/5B2/8/4K3/8 w - - 0 1");
+	EXPECT_TRUE(board.insufficientMaterial());
+	board = Board::buildFromFEN("B6k/8/8/8/8/8/8/b6K w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+
+	// Test different knight setups
+	board = Board::buildFromFEN("k7/2N5/1K6/8/8/8/8/8 w - - 0 1");
+	EXPECT_TRUE(board.insufficientMaterial());
+	board = Board::buildFromFEN("kn6/2N5/1K6/8/8/8/8/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("k7/2N5/1K6/8/8/8/8/1N6 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+
+	// Knigth + bishop
+	board = Board::buildFromFEN("8/8/1K6/8/8/4kB2/8/1N6 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/5b2/1K6/8/8/4k3/8/1N6 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
+	board = Board::buildFromFEN("8/8/1K2b3/6n1/8/4k3/8/8 w - - 0 1");
+	EXPECT_FALSE(board.insufficientMaterial());
 }

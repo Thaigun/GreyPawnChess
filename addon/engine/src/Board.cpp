@@ -716,12 +716,12 @@ Piece Board::getSquare(char file, char rank) const
     return pieces[8 * rank + file];
 }
 
-Color Board::getCurrentPlayer()
+Color Board::getCurrentPlayer() const
 {
     return playerInTurn;
 }
 
-bool Board::isCheck()
+bool Board::isCheck() const
 {
     Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
     Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
@@ -729,7 +729,56 @@ bool Board::isCheck()
     return isThreatened(kingSquare, opponentColor);
 }
 
-bool Board::isMate()
+bool Board::isMate() const
 {
     return isCheck() && findPossibleMoves().size() == 0;
+}
+
+bool Board::insufficientMaterial() const
+{
+    bool darkSquareBishop = false;
+    bool lightSquareBishop = false;
+    bool knightOnBoard = false;
+    for (char square = 0; square < 64; square++)
+    {
+        // If there is a pawn, queen or rook on the board, it is not insufficient material
+        if (!!(pieces[square] & Piece::PAWN))
+            return false;
+        if (!!(pieces[square] & Piece::QUEEN))
+            return false;
+        if (!!(pieces[square] & Piece::ROOK))
+            return false;
+
+        // If there are more than one knight on board, it's not insufficient material
+        if (!!(pieces[square] & Piece::KNIGHT))
+        {
+            if (knightOnBoard)
+                return false;
+            knightOnBoard = true;
+        }
+
+        // If there are bishops on both square colors, it's not insufficient material
+        if (!!(pieces[square] & Piece::BISHOP))
+        {
+            char rank = square / 8;
+            bool lightSquare = square % 2 + rank % 2 == 1;
+            if (lightSquare)
+            {
+                if (darkSquareBishop)
+                    return false;
+                lightSquareBishop = true;
+            }
+            else
+            {
+                if (lightSquareBishop)
+                    return false;
+                darkSquareBishop = true;
+            }
+        }
+
+        // Bishop and knight is also enough for a checkmate.
+        if ((darkSquareBishop | lightSquareBishop) && knightOnBoard)
+            return false;
+    }
+    return true;
 }
