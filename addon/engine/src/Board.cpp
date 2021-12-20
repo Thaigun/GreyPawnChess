@@ -189,26 +189,21 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
 
 bool Board::checkMoveLegality(const Move& move) const
 {
-    Board testBoard(*this);
-        
     if (move.isCastling()) 
     {
         char startSqr = std::min(move.from[0], move.to[0]);
         char endSqr = std::max(move.to[0], move.from[0]);
-        bool castlingThreatened = false;
         Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
         for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
         {
             if (isThreatened(stepSquare, opponent))
             {
-                castlingThreatened = true;
-                break;
+                return false;
             }
         }
-        if (castlingThreatened)
-            return false;
     }
 
+    Board testBoard(*this);
     testBoard.applyMove(move);
     // Check if the current player in turn is in check if the move was applied.
     Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
@@ -225,7 +220,7 @@ char Board::stepSquareInDirection(char square, MoveDirection direction)
 {
     // Direction offsets are like this:
     // 7  8  9
-    //-1  1  1
+    //-1  0  1
     //-9 -8 -7
     char file = square % 8;
     char rank = square / 8;
@@ -498,17 +493,116 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
 
 bool Board::isThreatened(char square, Color byPlayer) const
 {
-    // Find pseudo moves for all opponent pieces, if the king is in one of them, is check.
-    for (char i = 0; i < 64; i++)
+    // Threats are symmetric: if a knight in this square would threaten a knight of the other player,
+    // the other knight would also threaten this square.
+    // Hence, for each piece typewe check if such piece in this square would threaten a similar piece of the other player.
+    // If that's true for any piece type, then this square is threatened.
+    Piece testPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
+    Piece opponentColor = ~testPlayerColor & Piece::COLOR_MASK;
+    
+    // Test for knight threat
+    char file = square % 8;
+    char rank = square / 8;
+    // Offsets (compared to the current square) for the 8 possible squares a knight can threat this square from
+    char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
+    char fileOffsets[8] = { -2,-1,1,2, 2, 1,-1,-2 };
+    // Check each of the 8 squares if there is an enemy knight there
+    for (int i = 0; i < 8; i++)
     {
-        std::vector<Move> moves;
-        findPseudoLegalMoves(i, byPlayer, moves, true, true);
-        for (const Move& move : moves)
+        char moveRank = rank + rankOffsets[i];
+        char moveFile = file + fileOffsets[i];
+        if (moveRank > 7 || moveRank < 0 || moveFile < 0 || moveFile > 7)
+            continue;
+        
+        char moveSquare = 8 * moveRank + moveFile;
+        Piece targetSquarePiece = pieces[moveSquare];
+        if (targetSquarePiece == (Piece::KNIGHT | opponentColor))
+            return true;
+    }
+
+    // Test for pawn threat
+    MoveDirection possibleThreats[2];
+    possibleThreats[0] = testPlayerColor == Piece::WHITE ? MoveDirection::NE : MoveDirection::SE;
+    possibleThreats[1] = testPlayerColor == Piece::WHITE ? MoveDirection::NW : MoveDirection::SW;
+    for (int i = 0; i < 2; i++)
+    {
+        char threatSquare = stepSquareInDirection(square, possibleThreats[i]);
+        if (threatSquare != char(-1))
         {
-            if (move.to[0] == square)
+            Piece threatPiece = pieces[threatSquare];
+            if (threatPiece == (opponentColor | Piece::PAWN))
                 return true;
         }
     }
+
+    // Test for king threat
+    MoveDirection kingDirections[8] = {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W,
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    for (int i = 0; i < 8; i++)
+    {
+        char threatSquare = stepSquareInDirection(square, kingDirections[i]);
+        if (threatSquare != char(-1))
+        {
+            Piece threatPiece = pieces[threatSquare];
+            if (threatPiece == (opponentColor | Piece::KING))
+                return true;
+        }
+    }
+
+    // Test for other threats, first vertical and then straight lines.
+    MoveDirection testDirections[2][4] = {
+        {
+            MoveDirection::NE,
+            MoveDirection::SE,
+            MoveDirection::SW,
+            MoveDirection::NW
+        },
+        {
+            MoveDirection::N,
+            MoveDirection::S,
+            MoveDirection::E,
+            MoveDirection::W
+        }
+    };
+    Piece threatPieces[2] = {
+        Piece::BISHOP | Piece::QUEEN,
+        Piece::ROOK | Piece::QUEEN
+    };
+
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            char nextSquare = stepSquareInDirection(square, testDirections[i][j]);
+            while (nextSquare != -1)
+            {
+                Piece targetPiece = pieces[nextSquare];
+
+                // Own pieces are not threats
+                if (!!(targetPiece & testPlayerColor))
+                    break;
+                
+                // The piece is opponent and can move here, it's a threat
+                if (!!(targetPiece & threatPieces[i]))
+                    return true;
+
+                // The piece is opponent's but cannot move here, not a threat
+                if (targetPiece != Piece::NONE)
+                    break;
+
+                nextSquare = stepSquareInDirection(nextSquare, testDirections[i][j]);
+            }
+        }
+    }
+
     return false;
 }
 
