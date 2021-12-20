@@ -121,6 +121,7 @@ MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, Move*
         {
             *populateMove = possibleMoves[i];
             bestChild = &childNodes[i];
+            bestChildUCB1 = thisChildUCB1;
             if (thisChildUCB1 == FLT_MAX)
                 return bestChild;
         }
