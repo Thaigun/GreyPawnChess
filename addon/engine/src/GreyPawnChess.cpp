@@ -85,7 +85,7 @@ void GreyPawnChess::tickComputation()
     // IMPLEMENTATION ENDS HERE
 
     // This MUST be set in this method if it's our turn.
-    confidence = 1.0f;
+    confidence = 0.5f;
 }
 
 void GreyPawnChess::applyMove(const Move& move)

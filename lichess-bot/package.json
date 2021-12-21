@@ -1,5 +1,5 @@
 {
-  "name": "lihcess-greypawnchess",
+  "name": "lichess-greypawnchess",
   "version": "0.0.1",
   "description": "Chess bot for Lichess.",
   "main": "index.js",
@@ -12,7 +12,7 @@
     "url": "git+https://github.com/Thaigun/GreyPawnChess.git"
   },
   "dependencies": {
-    "axios": "^0.21.1",
+    "axios": "^0.24.0",
     "grey-pawn-chess": "file:../addon",
     "ndjson": "^2.0.0"
   },
