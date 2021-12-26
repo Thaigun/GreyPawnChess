@@ -6,6 +6,8 @@
 #include "../src/Board.h"
 #include "../src/Move.h"
 
+#include "../src/ScopedProfiler.h"
+
 unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool divide = false)
 {
 	if (depth == 0u)
@@ -32,6 +34,7 @@ unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool div
 // https://www.chessprogramming.org/Perft_Results
 TEST(BoardTest, LegalMoves1) 
 {
+	ScopedProfiler profiler("LegalMoves1");
 	const Board board = Board::buildFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	unsigned int expectedMoveCounts[6] = {
 		1u, 20u, 400u, 8902u, 197281u, 4865609u
