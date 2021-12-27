@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <climits>
 #include <iterator>
 #include <sstream>
 #include <utility>
 
 #include "BoardFuncs.h"
+#include "Random.h"
 #include "ScopedProfiler.h"
 #include "StringUtil.h"
 
@@ -676,6 +678,13 @@ Move Board::constructMove(const std::string& moveUCI)
 
 void Board::applyMove(const Move& move) 
 {
+    // Remove the old en passant file from the hash
+    if (enPassant != -1)
+    {
+        int enPassantFile = enPassant % 8;
+        hash ^= getZobristHashTable()[12 * 64 + 1 + 5 + enPassantFile];
+    }
+
     // Reset, it will be set again if needed
     enPassant = -1;
 
@@ -699,6 +708,10 @@ void Board::applyMove(const Move& move)
             continue;
 
         Piece movePiece = movePieces[i];
+
+        // Update the Zobrist hash, remove the piece from the old square
+        hash ^= getZobristHashTable()[from * 12 + zobristPieceKey(movePiece)];
+
         // Prepare potential promotion
         if (move.promotion != Piece::NONE)
         {
@@ -714,12 +727,21 @@ void Board::applyMove(const Move& move)
             {
                 // En passant square is between from and to.
                 enPassant = (from + to) / 2;
+                // Add the new en passant file to the hash
+                int enPassantFile = enPassant % 8;
+                hash ^= getZobristHashTable()[12 * 64 + 1 + 5 + enPassantFile];
             }
         }
         pieces[from] = Piece::NONE;
         if (to >= 0 && to < 64)
+        {
             pieces[to] = movePiece;
+            // Update the Zobrist hash, add the piece to the new square
+            hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(movePiece)];
+        }
     }
+
+    bool oldCastlingRights[4] = { whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen };
 
     updateCastlingRights();
 
@@ -739,8 +761,20 @@ void Board::applyMove(const Move& move)
         }
     }
 
+    bool newCastlingRights[4] = { whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen };
+
+    // Update the hash with the new castling rights
+    for (int i = 0; i < 4; i++)
+    {
+        if (oldCastlingRights[i] != newCastlingRights[i])
+        {
+            hash ^= getZobristHashTable()[12 * 64 + 1 + i];
+        }
+    }
+
     // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
+    hash ^= getZobristHashTable()[12 * 64];
 }
 
 void Board::updateCastlingRights()
@@ -880,4 +914,110 @@ bool Board::insufficientMaterial() const
             return false;
     }
     return true;
+}
+
+int Board::getHash()
+{
+    if (hash != 0)
+        return hash;
+
+    hash = 0;
+    for (int i = 0; i < 64; i++)
+    {
+        if (pieces[i] != Piece::NONE)
+        {
+            int pieceIdx = zobristPieceKey(pieces[i]);
+            hash ^= getZobristHashTable()[i * 12 + pieceIdx];
+        }
+    }
+    if (playerInTurn == Color::WHITE)
+    {
+        hash ^= getZobristHashTable()[64 * 12];
+    }
+    if (whiteCanCastleKing)
+    {
+        hash ^= getZobristHashTable()[64 * 12 + 1];
+    }
+    if (whiteCanCastleQueen)
+    {
+        hash ^= getZobristHashTable()[64 * 12 + 2];
+    }
+    if (blackCanCastleKing)
+    {
+        hash ^= getZobristHashTable()[64 * 12 + 3];
+    }
+    if (blackCanCastleQueen)
+    {
+        hash ^= getZobristHashTable()[64 * 12 + 4];
+    }
+    if (enPassant != -1)
+    {
+        int enPassantFile = enPassant % 8;
+        hash ^= getZobristHashTable()[64 * 12 + 5 + enPassantFile];
+    }
+    return hash;
+}
+
+int Board::zobristPieceKey(Piece piece) 
+{
+    switch (piece)
+    {
+    case (Piece::PAWN | Piece::WHITE):
+        return 0;
+        break;
+    case (Piece::KNIGHT | Piece::WHITE):
+        return 1;
+        break;
+    case (Piece::BISHOP | Piece::WHITE):
+        return 2;
+        break;
+    case (Piece::ROOK | Piece::WHITE):
+        return 3;
+        break;
+    case (Piece::QUEEN | Piece::WHITE):
+        return 4;
+        break;
+    case (Piece::KING | Piece::WHITE):
+        return 5;
+        break;
+    case (Piece::PAWN | Piece::BLACK):
+        return 6;
+        break;
+    case (Piece::KNIGHT | Piece::BLACK):
+        return 7;
+        break;
+    case (Piece::BISHOP | Piece::BLACK):
+        return 8;
+        break;
+    case (Piece::ROOK | Piece::BLACK):
+        return 9;
+        break;
+    case (Piece::QUEEN | Piece::BLACK):
+        return 10;
+        break;
+    case (Piece::KING | Piece::BLACK):
+        return 11;
+        break;
+
+    default:
+        return 0;
+        break;
+    }
+}
+
+int* Board::getZobristHashTable()
+{
+    static int zobristHashTable[64 * 12 + 1 + 4 + 8];
+    static bool initialized = false;
+    if (!initialized)
+    {
+        // If the hash is not yet calculated, calculate it.
+        constexpr int nNumbers = 64 * 12 + 1 + 4 + 8;
+        for (int i = 0; i < nNumbers; i++)
+        {
+            zobristHashTable[i] = Random::Range(INT_MIN, INT_MAX);
+        }
+        initialized = true;
+    }
+    return zobristHashTable;
 }

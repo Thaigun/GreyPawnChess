@@ -23,6 +23,7 @@ public:
     bool isMate() const;
     bool insufficientMaterial() const;
     std::string getFEN() const;
+    int getHash();
 
 private:
     void setSquare(const char* sqr, Piece data);
@@ -49,6 +50,9 @@ private:
     void findPseudoKnightMoves(char square, std::vector<Move>& moves) const;
     void findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps = 1000000) const;
 
+    static int* getZobristHashTable();
+    static int zobristPieceKey(Piece piece);
+
     // Squares are in order from white's perspective left to right, bottom to top. 
     // a1, b1, c1 ... a2, b2, c2
     Piece pieces[64];
@@ -63,4 +67,6 @@ private:
     bool blackCanCastleQueen = true;
     // Square which is available for an en passant take on this move.
     char enPassant = -1;
+
+    int hash = 0;
 };
