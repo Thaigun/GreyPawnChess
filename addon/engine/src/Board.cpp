@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "BoardFuncs.h"
+#include "ScopedProfiler.h"
 #include "StringUtil.h"
 
 Board::Board()
@@ -146,6 +147,7 @@ Board Board::buildFromFEN(const std::string& fenString)
 
 std::vector<Move> Board::findPossibleMoves() const
 {
+    PROFILE("Board::findPossibleMoves");
     std::vector<Move> pseudoMoves;
     for (char sqr = 0; sqr < (char)64; sqr++)
     {
@@ -189,6 +191,7 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
 
 bool Board::checkMoveLegality(const Move& move) const
 {
+    PROFILE("Board::checkMoveLegality");
     if (move.isCastling()) 
     {
         char startSqr = std::min(move.from[0], move.to[0]);
@@ -458,6 +461,7 @@ void Board::findPseudoKnightMoves(char square, std::vector<Move>& moves) const
 
 void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>& pseudoLegalMoves, bool pawnOnlyTakes, bool forceIncludePawnTakes) const
 {
+    PROFILE("Board::findPseudoLegalMoves");
     Piece piece = pieces[square];
     Piece currentPlayer = forPlayer == Color::WHITE ? Piece::WHITE : Piece::BLACK;
     if (!(piece & currentPlayer))
@@ -493,6 +497,7 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
 
 bool Board::isThreatened(char square, Color byPlayer) const
 {
+    PROFILE("Board::isThreatened");
     // Threats are symmetric: if a knight in this square would threaten a knight of the other player,
     // the other knight would also threaten this square.
     // Hence, for each piece typewe check if such piece in this square would threaten a similar piece of the other player.

@@ -7,6 +7,7 @@
 
 #include "GameState.h"
 #include "Random.h"
+#include "ScopedProfiler.h"
 
 #define MTX_LOCK std::unique_lock<std::mutex> lock(mtx);
 
@@ -63,10 +64,16 @@ void GreyPawnChess::startGame()
             
             if (TimeManagement::timeToMove(timeLeftMs, increment, (int)moves.size(), timeSpent, confidence))
             {
+                PROFILER_PRINT();
+                PROFILER_RESET();
+
                 makeComputerMove(monteCarloTree.highestWinrateMove());
                 std::vector<Move> possibleMoves = board.findPossibleMoves();
                 if (possibleMoves.size() == 0)
-                    return;
+                {
+                    MTX_LOCK
+                    running = false;
+                }
             }
         }
     });
