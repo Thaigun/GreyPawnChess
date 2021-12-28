@@ -44,6 +44,8 @@ Board::Board()
     {
         pieces[square] = Piece::NONE;
     }
+
+    initHash();
 }
 
 Board Board::buildFromFEN(const std::string& fenString)
@@ -144,6 +146,7 @@ Board Board::buildFromFEN(const std::string& fenString)
     {
         newBoard.enPassant = BoardFuncs::getSquareIndex(fenParts[3]);
     }
+    newBoard.initHash();
     return newBoard;
 }
 
@@ -682,7 +685,7 @@ void Board::applyMove(const Move& move)
     if (enPassant != -1)
     {
         int enPassantFile = enPassant % 8;
-        hash ^= getZobristHashTable()[12 * 64 + 1 + 5 + enPassantFile];
+        hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
     }
 
     // Reset, it will be set again if needed
@@ -729,12 +732,19 @@ void Board::applyMove(const Move& move)
                 enPassant = (from + to) / 2;
                 // Add the new en passant file to the hash
                 int enPassantFile = enPassant % 8;
-                hash ^= getZobristHashTable()[12 * 64 + 1 + 5 + enPassantFile];
+                hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
             }
         }
         pieces[from] = Piece::NONE;
         if (to >= 0 && to < 64)
         {
+            // Remove the old piece from the target square if there was one
+            Piece targetPiece = pieces[to];
+            if (targetPiece != Piece::NONE)
+            {
+                hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(targetPiece)];
+            }
+
             pieces[to] = movePiece;
             // Update the Zobrist hash, add the piece to the new square
             hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(movePiece)];
@@ -916,12 +926,14 @@ bool Board::insufficientMaterial() const
     return true;
 }
 
-int Board::getHash()
+unsigned int Board::getHash()
 {
-    if (hash != 0)
-        return hash;
+    return hash;
+}
 
-    hash = 0;
+void Board::initHash()
+{
+    hash = 0u;
     for (int i = 0; i < 64; i++)
     {
         if (pieces[i] != Piece::NONE)
@@ -955,47 +967,46 @@ int Board::getHash()
         int enPassantFile = enPassant % 8;
         hash ^= getZobristHashTable()[64 * 12 + 5 + enPassantFile];
     }
-    return hash;
 }
 
 int Board::zobristPieceKey(Piece piece) 
 {
-    switch (piece)
+    switch (uint16_t(piece))
     {
-    case (Piece::PAWN | Piece::WHITE):
+    case (uint16_t(Piece::PAWN | Piece::WHITE)):
         return 0;
         break;
-    case (Piece::KNIGHT | Piece::WHITE):
+    case (uint16_t(Piece::KNIGHT | Piece::WHITE)):
         return 1;
         break;
-    case (Piece::BISHOP | Piece::WHITE):
+    case (uint16_t(Piece::BISHOP | Piece::WHITE)):
         return 2;
         break;
-    case (Piece::ROOK | Piece::WHITE):
+    case (uint16_t(Piece::ROOK | Piece::WHITE)):
         return 3;
         break;
-    case (Piece::QUEEN | Piece::WHITE):
+    case (uint16_t(Piece::QUEEN | Piece::WHITE)):
         return 4;
         break;
-    case (Piece::KING | Piece::WHITE):
+    case (uint16_t(Piece::KING | Piece::WHITE)):
         return 5;
         break;
-    case (Piece::PAWN | Piece::BLACK):
+    case (uint16_t(Piece::PAWN | Piece::BLACK)):
         return 6;
         break;
-    case (Piece::KNIGHT | Piece::BLACK):
+    case (uint16_t(Piece::KNIGHT | Piece::BLACK)):
         return 7;
         break;
-    case (Piece::BISHOP | Piece::BLACK):
+    case (uint16_t(Piece::BISHOP | Piece::BLACK)):
         return 8;
         break;
-    case (Piece::ROOK | Piece::BLACK):
+    case (uint16_t(Piece::ROOK | Piece::BLACK)):
         return 9;
         break;
-    case (Piece::QUEEN | Piece::BLACK):
+    case (uint16_t(Piece::QUEEN | Piece::BLACK)):
         return 10;
         break;
-    case (Piece::KING | Piece::BLACK):
+    case (uint16_t(Piece::KING | Piece::BLACK)):
         return 11;
         break;
 
@@ -1005,9 +1016,9 @@ int Board::zobristPieceKey(Piece piece)
     }
 }
 
-int* Board::getZobristHashTable()
+unsigned int* Board::getZobristHashTable()
 {
-    static int zobristHashTable[64 * 12 + 1 + 4 + 8];
+    static unsigned int zobristHashTable[64 * 12 + 1 + 4 + 8];
     static bool initialized = false;
     if (!initialized)
     {
@@ -1015,7 +1026,7 @@ int* Board::getZobristHashTable()
         constexpr int nNumbers = 64 * 12 + 1 + 4 + 8;
         for (int i = 0; i < nNumbers; i++)
         {
-            zobristHashTable[i] = Random::Range(INT_MIN, INT_MAX);
+            zobristHashTable[i] = Random::Range(0u, UINT_MAX);
         }
         initialized = true;
     }

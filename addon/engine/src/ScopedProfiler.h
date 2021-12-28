@@ -40,6 +40,7 @@ public:
     void reset()
     {
         callCounts.clear();
+        blockDurations.clear();
         profilerStartTime = std::chrono::high_resolution_clock::now();
     }
 private:

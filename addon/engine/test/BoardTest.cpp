@@ -1,4 +1,5 @@
 #include <iostream>
+#include <unordered_set>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -38,7 +39,7 @@ TEST(BoardTest, LegalMoves1)
 	unsigned int expectedMoveCounts[6] = {
 		1u, 20u, 400u, 8902u, 197281u, 4865609u
 	};
-	int depth = 4;
+	int depth = 5;
 	unsigned int foundMoves = countPossibleMoves(board, depth);
 	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
 	PROFILER_RESET();
@@ -149,4 +150,162 @@ TEST(BoardTest, InsufficientMaterial)
 	EXPECT_FALSE(board.insufficientMaterial());
 	board = Board::buildFromFEN("8/8/1K2b3/6n1/8/4k3/8/8 w - - 0 1");
 	EXPECT_FALSE(board.insufficientMaterial());
+}
+
+TEST(BoardTest, HashTest0)
+{
+	Board board1;
+	Board board2;
+	ASSERT_EQ(board1.getHash(), board2.getHash());
+}
+
+TEST(BoardTest, HashTest1) 
+{
+	// Board that is brought to the position move by move should have the same hash as a board build from the corresponding FEN string
+	Board board;
+	board.applyMove(board.constructMove("d2d4"));
+	board.applyMove(board.constructMove("d7d5"));
+	board.applyMove(board.constructMove("b1c3"));
+	board.applyMove(board.constructMove("g8f6"));
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("rnbqkb1r/ppp1pppp/5n2/3p4/3P4/2N5/PPP1PPPP/R1BQKBNR w KQkq - 2 3");
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest2)
+{
+	// Two transpositions should have the same hash
+	Board board;
+	board.applyMove(board.constructMove("d2d3"));
+	board.applyMove(board.constructMove("d7d6"));
+	board.applyMove(board.constructMove("b1c3"));
+	board.applyMove(board.constructMove("g8f6"));
+	unsigned int hash1 = board.getHash();
+	Board board2;
+	board2.applyMove(board2.constructMove("b1c3"));
+	board2.applyMove(board2.constructMove("g8f6"));
+	board2.applyMove(board2.constructMove("d2d3"));
+	board2.applyMove(board2.constructMove("d7d6"));
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest3)
+{
+	// After two moves from the initial position, there should be 400 different hashes
+	std::unordered_set<unsigned int> hashes;
+	Board board;
+	std::vector<Move> possibleMoves = board.findPossibleMoves();
+	for (const Move& move : possibleMoves)
+	{
+		Board boardCopy = board;
+		boardCopy.applyMove(move);
+		std::vector<Move> possibleMoves2 = boardCopy.findPossibleMoves();
+		for (const Move& move2 : possibleMoves2)
+		{
+			Board boardCopy2 = boardCopy;
+			boardCopy2.applyMove(move2);
+			unsigned int hash = boardCopy2.getHash();
+			hashes.insert(hash);
+		}
+	}
+	ASSERT_EQ(hashes.size(), 400);
+}
+
+TEST(BoardTest, HashTest4)
+{
+	// Castling rights should be taken into account
+	Board board = Board::buildFromFEN("rnbqk2r/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
+	unsigned int hashBefore = board.getHash();
+	board.applyMove(board.constructMove("e1g1"));
+	board.applyMove(board.constructMove("b8c6"));
+	board.applyMove(board.constructMove("g1e1"));
+	board.applyMove(board.constructMove("c6b8"));
+	unsigned int hashAfter = board.getHash();
+	ASSERT_NE(hashBefore, hashAfter);
+}
+
+TEST(BoardTest, HashTest5)
+{
+	// Moving back and forth should not change the hash (unless castling rights are changed)
+	Board board = Board::buildFromFEN("rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6");
+	unsigned int hashBefore = board.getHash();
+	board.applyMove(board.constructMove("c1f4"));
+	board.applyMove(board.constructMove("d8d7"));
+	board.applyMove(board.constructMove("f4c1"));
+	board.applyMove(board.constructMove("d7d8"));
+	unsigned int hashAfter = board.getHash();
+	ASSERT_EQ(hashBefore, hashAfter);
+}
+
+TEST(BoardTest, HashTest6)
+{
+	// Different player in turn should change the hash
+	Board board = Board::buildFromFEN("rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6");
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("rnbqkb1r/1p2pppp/p2p1n2/8/3N4/2N1P3/PPP2PPP/R1BQKB1R w KQkq - 0 6");
+	board2.applyMove(board2.constructMove("e3e4"));
+	unsigned int hash2 = board2.getHash();
+	ASSERT_NE(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest7)
+{
+	// En passant square should change the hash
+	Board board;
+	board.applyMove(board.constructMove("d2d4"));
+	board.applyMove(board.constructMove("d7d5"));
+	unsigned int enPassantHash = board.getHash();
+	Board board2;
+	board2.applyMove(board2.constructMove("d2d3"));
+	board2.applyMove(board2.constructMove("d7d6"));
+	board2.applyMove(board2.constructMove("d3d4"));
+	board2.applyMove(board2.constructMove("d6d5"));
+	unsigned int noEnPassantHash = board2.getHash();
+	ASSERT_NE(enPassantHash, noEnPassantHash);
+}
+
+TEST(BoardTest, HashTest8)
+{
+	// Check that taking a piece leads to correct hash
+	Board board = Board::buildFromFEN("r1bqk2r/pp3ppp/2nppn2/2p5/2PP4/2PBPN2/P4PPP/R1BQK2R w KQkq - 0 8");
+	board.applyMove(board.constructMove("d4c5"));
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("r1bqk2r/pp3ppp/2nppn2/2P5/2P5/2PBPN2/P4PPP/R1BQK2R b KQkq - 0 8");
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest8_1)
+{
+	// End up to the same position as in the previous test but with different move
+	Board board = Board::buildFromFEN("r1bqk2r/pp3ppp/2nppn2/2P5/2P5/2P1PN2/P1B2PPP/R1BQK2R w KQkq - 0 8");
+	board.applyMove(board.constructMove("c2d3"));
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("r1bqk2r/pp3ppp/2nppn2/2P5/2P5/2PBPN2/P4PPP/R1BQK2R b KQkq - 0 8");
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest9)
+{
+	// Promotion with take
+	Board board = Board::buildFromFEN("1r2k2r/2P4p/5q2/p7/6P1/5P2/2R2K2/2R5 w k - 0 1");
+	board.applyMove(board.constructMove("c7b8q"));
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("1Q2k2r/7p/5q2/p7/6P1/5P2/2R2K2/2R5 b k - 0 1");
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, HashTest10)
+{
+	// Promotion without take
+	Board board = Board::buildFromFEN("4k2r/7p/5q2/8/5QP1/5P2/p1R2K2/2R5 b k - 0 1");
+	board.applyMove(board.constructMove("a2a1n"));
+	unsigned int hash1 = board.getHash();
+	Board board2 = Board::buildFromFEN("4k2r/7p/5q2/8/5QP1/5P2/2R2K2/n1R5 w k - 0 1");
+	unsigned int hash2 = board2.getHash();
+	ASSERT_EQ(hash1, hash2);
 }
