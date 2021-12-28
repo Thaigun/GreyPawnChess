@@ -136,7 +136,7 @@ unsigned int MonteCarloNode::nodeVisits() const
 
 Move MonteCarloNode::highestWinrateMove() const
 {
-    float bestWinRate = FLT_MIN;
+    float bestWinRate = -1.0f;
     Move bestMove;
     for (int i = 0; i < childNodes.size(); i++)
     {
@@ -150,7 +150,7 @@ Move MonteCarloNode::highestWinrateMove() const
             bestMove = possibleMoves[i];
         }
     }
-    assert(bestWinRate != FLT_MIN && "Shouldn't call this function if no iterations have been run.");
+    assert(bestWinRate != -1.0f && "Shouldn't call this function if no iterations have been run.");
     return bestMove;
 }
 
