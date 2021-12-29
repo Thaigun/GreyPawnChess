@@ -28,6 +28,7 @@ public:
 		}
 		else
 		{
+			std::cerr << "Unknown strategy: " << stratName << std::endl;
 			throw Napi::Error::New(info.Env(), "Unknown strategy name");
 		}
 	}
