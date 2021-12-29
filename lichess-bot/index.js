@@ -97,7 +97,7 @@ async function abortGame(msg) {
 }
 
 function startGame(msg) {
-    let newGame = new greypawnchess.GreyPawnChess();
+    let newGame = new greypawnchess.GreyPawnChess("MonteCarlo");
     let storedGameObj = {
         id: msg.game.id,
         setupDone: false,

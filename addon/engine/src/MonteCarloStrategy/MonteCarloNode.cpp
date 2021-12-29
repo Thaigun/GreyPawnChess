@@ -5,9 +5,9 @@
 #include <limits>
 #include <vector>
 
-#include "Board.h"
-#include "BoardEvaluator.h"
-#include "Random.h"
+#include "../Board.h"
+#include "../BoardEvaluator.h"
+#include "../Random.h"
 
 float MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
 {

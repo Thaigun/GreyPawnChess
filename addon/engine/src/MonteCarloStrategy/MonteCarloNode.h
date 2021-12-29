@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "GameState.h"
-#include "Move.h"
+#include "../GameState.h"
+#include "../Move.h"
 
 class Board;
 

@@ -2,9 +2,11 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 #include "../engine/src/GreyPawnChess.h"
+#include "../engine/src/MonteCarloStrategy/MonteCarloStrategy.h"
 #include "../engine/src/GameState.h"
 
 /**
@@ -18,7 +20,16 @@ public:
 	GreyPawnChessAddon(const Napi::CallbackInfo& info) 
 		: Napi::ObjectWrap<GreyPawnChessAddon>(info)
 	{
-		// Parse constructor parameters here if needed.
+		// Parse constructor parameters here.
+		std::string stratName = (std::string)(info[0].As<Napi::String>());
+		if (stratName == "MonteCarlo")
+		{
+			game = std::make_unique<MonteCarloStrategy>();
+		}
+		else
+		{
+			throw Napi::Error::New(info.Env(), "Unknown strategy name");
+		}
 	}
 
 	// Used for initializing the Node addon.
@@ -60,7 +71,7 @@ private:
 		
 		std::string colorStr = (std::string)color;
 
-		game.setup(colorStr.front(), initialClock.Int32Value(), incrementClock.Int32Value(), (std::string)variant);
+		game->setup(colorStr.front(), initialClock.Int32Value(), incrementClock.Int32Value(), (std::string)variant);
 	}
 
 	// Forwards server updates to the engine.
@@ -129,7 +140,7 @@ private:
 			movesString
 		);
 
-		game.updateGameState(state);
+		game->updateGameState(state);
 	}
 
 	// Starts the engine calculations. It will run on a separate thread on the engine side
@@ -146,18 +157,18 @@ private:
 			1
 		);
 
-		game.setMoveCallback(std::bind(
+		game->setMoveCallback(std::bind(
 			&GreyPawnChessAddon::HandleEngineMove,
 			this, 
 			std::placeholders::_1
 		));
-		game.startGame();
+		game->startGame();
 	}
 
 	// Signals the game that it should stop and waits for it to stop.
 	void StopGame(const Napi::CallbackInfo& info) 
 	{
-		game.stopGame();
+		game->stopGame();
 		tsfn.Release();
 	}
 
@@ -193,7 +204,8 @@ private:
 	Napi::ThreadSafeFunction tsfn;
 
 	// The actual engine game.
-	GreyPawnChess game;
+	// Change this to use different strategies!
+	std::unique_ptr<GreyPawnChess> game;
 };
 
 Napi::Object InitGame(Napi::Env env, Napi::Object exports)

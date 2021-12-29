@@ -1,7 +1,7 @@
 const readline = require('readline');
 const greypawnchess = require('./index');
 
-let game = new greypawnchess.GreyPawnChess();
+let game = new greypawnchess.GreyPawnChess("MonteCarlo");
 
 let rl = readline.createInterface({input: process.stdin, output: process.stdout});
 // Get the desired color and time control from the user.

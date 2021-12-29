@@ -67,7 +67,7 @@ void GreyPawnChess::startGame()
                 PROFILER_PRINT();
                 PROFILER_RESET();
 
-                makeComputerMove(monteCarloTree.highestWinrateMove());
+                makeComputerMove(getBestMove());
                 std::vector<Move> possibleMoves = board.findPossibleMoves();
                 if (possibleMoves.size() == 0)
                 {
@@ -79,27 +79,11 @@ void GreyPawnChess::startGame()
     });
 }
 
-void GreyPawnChess::tickComputation()
-{
-    // IMPLEMENT THIS TO MAKE DA STRONK ENGINE
-
-    // Run a few iterations of the Monte Carlo search.
-    for (int i = 0; i < 10; i++)
-    {
-        monteCarloTree.runIteration(board, monteCarloTree.nodeVisits());
-    }
-    
-    // IMPLEMENTATION ENDS HERE
-
-    // This MUST be set in this method if it's our turn.
-    confidence = 0.5f;
-}
-
 void GreyPawnChess::applyMove(const Move& move)
 {
     moves.push_back(move);
     board.applyMove(move);
-    monteCarloTree = std::move(monteCarloTree.getNodeForMove(move));
+    applyMoveToStrategy(move);
 }
 
 void GreyPawnChess::makeComputerMove(const Move& move)

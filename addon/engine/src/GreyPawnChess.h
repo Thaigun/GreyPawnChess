@@ -9,7 +9,6 @@
 
 #include "Board.h"
 #include "GameState.h"
-#include "MonteCarloNode.h"
 #include "Move.h"
 #include "TimeManagement.h"
 
@@ -28,10 +27,13 @@ public:
     // Give it a callback function it should call when it wants to make the move.
     void setMoveCallback(std::function<void(const std::string&)> cb);
 
-private:
-    // Private methods
+protected:
+    // To be oberriden by specific strategy implementations
     // Called repeatedly while the game is running. Each tick should take max 200ms.
-    void tickComputation();
+    virtual void tickComputation() = 0;
+    virtual void applyMoveToStrategy(const Move& move) = 0;
+    virtual Move getBestMove() = 0;
+
     Duration timeSinceStateSet();
     Color playerInTurn();
     void applyMove(const Move& move);
@@ -40,8 +42,6 @@ private:
     Board board;
     std::vector<Move> moves;
 
-    MonteCarloNode monteCarloTree;
-    
     // Members used to manage the worker thread and by the worker thread.
     std::function<void(std::string)> moveCallback;
     std::thread workThread;

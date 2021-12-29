@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "../src/Board.h"
-#include "../src/MonteCarloNode.h"
+#include "../src/MonteCarloStrategy/MonteCarloNode.h"
 
 // Demonstrate some basic assertions.
 TEST(MonteCarloNodeTest, FreshNode) 
