@@ -45,7 +45,7 @@ TEST(MonteCarloNode, ManyIterations)
 {
     MonteCarloNode root;
     Board board;
-    unsigned int iterations = 100;
+    unsigned int iterations = 1000;
     for (unsigned int i = 0u; i < iterations; i++)
     {
         root.runIteration(board, root.nodeVisits());

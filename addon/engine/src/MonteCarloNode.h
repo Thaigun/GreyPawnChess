@@ -11,7 +11,7 @@ class MonteCarloNode
 {
 public:
     // Simulates the given board until the game ends or max number of moves are reached.
-    Color runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount = 1000u);
+    float runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount = 15u);
     bool isLeaf();
     float UCB1(unsigned int totalVisits);
     MonteCarloNode* highestUCB1Child(unsigned int totalVisits, Move* populateMove);
@@ -21,7 +21,7 @@ public:
 
 private:
     // Actual implementation is this method. The public version takes a const reference to the board for safety reasons.
-    Color runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot);
+    float runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot);
 
     std::vector<Move> possibleMoves;
     std::vector<MonteCarloNode> childNodes;

@@ -6,15 +6,16 @@
 #include <vector>
 
 #include "Board.h"
+#include "BoardEvaluator.h"
 #include "Random.h"
 
-Color MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
+float MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
 {
     Board iterationBoard = board;
     return runIterationOnBoard(iterationBoard, totalSimCount, maxMoveCount, true);
 }
 
-Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot)
+float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot)
 {
     Color nodePlayerColor = board.getCurrentPlayer();
     if (!isLeaf())
@@ -23,13 +24,9 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
         Move bestMove;
         MonteCarloNode* bestChild = highestUCB1Child(totalSimCount, &bestMove);
         board.applyMove(bestMove);
-        Color winner = bestChild->runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
-        if (winner == nodePlayerColor)
-            points += 1.0f;
-        else if (winner == Color::NONE)
-            points += 0.5f;
-
-        return winner;
+        float simulationPoints = bestChild->runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
+        points += 1 - simulationPoints;
+        return simulationPoints;
     }
 
     // Is leaf
@@ -38,13 +35,7 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
     if (initialMoves.size() == 0)
     {
         nodeIterations++;
-        Color winner = Color::NONE;
-        if (board.isCheck())
-        {
-            // Current player is in mate.
-            winner = board.getCurrentPlayer() == Color::BLACK ? Color::WHITE : Color::BLACK;
-        }
-        return winner;
+        return board.isCheck() ? 0.0f : 1.0f;
     }
 
     // Node has not been simulated yet. If this is a root node, skip simulation.
@@ -52,12 +43,14 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
     {
         unsigned int movesLeft = maxMoveCount;
         Color simulationWinner = Color::NONE;
+        bool reachedEnd = false;
         
         while (movesLeft-- > 0u)
         {
             std::vector<Move> nextMoves = board.findPossibleMoves();
             if (nextMoves.size() == 0)
             {
+                reachedEnd = true;
                 if (board.isCheck())
                 {
                     // Checkmate
@@ -70,6 +63,7 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
             }
             if (board.insufficientMaterial())
             {
+                reachedEnd = true;
                 // Insufficient material
                 simulationWinner = Color::NONE;
                 break;
@@ -78,12 +72,25 @@ Color MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCou
             board.applyMove(nextMoves[moveIdx]);
         }
 
+        if (!reachedEnd)
+        {
+            float boardEval = BoardEvaluator::evaluateBoard(board);
+            float whiteWinProb = (boardEval / (1 + std::abs(boardEval))) * 0.5f + 0.5f;
+            float winProb = nodePlayerColor == Color::WHITE ? whiteWinProb : 1.0f - whiteWinProb;
+            points += winProb;
+            return winProb;
+        }
         if (nodePlayerColor == simulationWinner)
+        {
             points += 1.0f;
-        else if (simulationWinner == Color::NONE)
+            return 1.0f;
+        }   
+        if (simulationWinner == Color::NONE)
+        {
             points += 0.5f;
-
-        return simulationWinner;
+            return 0.5f;
+        }
+        return 0.0f;
     }
 
     // Expand the node if it has been simulated and did not have children yet.
@@ -112,7 +119,7 @@ float MonteCarloNode::UCB1(unsigned int totalVisits)
 
 MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, Move* populateMove)
 {
-    float bestChildUCB1 = FLT_MIN;
+    float bestChildUCB1 = -1.0f;
     MonteCarloNode* bestChild = nullptr;
     for (int i = 0; i < childNodes.size(); i++)
     {
