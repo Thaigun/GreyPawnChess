@@ -84,7 +84,7 @@ void GreyPawnChess::tickComputation()
     // IMPLEMENT THIS TO MAKE DA STRONK ENGINE
 
     // Run a few iterations of the Monte Carlo search.
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 10; i++)
     {
         monteCarloTree.runIteration(board, monteCarloTree.nodeVisits());
     }

@@ -473,30 +473,24 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
     {
         return;
     }
+    Piece pieceType = piece & ~Piece::COLOR_MASK;
     
-    if (!!(piece & Piece::PAWN))
+    switch (pieceType)
     {
+    case Piece::PAWN:
         return findPseudoPawnMoves(square, forPlayer, pseudoLegalMoves, pawnOnlyTakes, forceIncludePawnTakes);
-    }
-    else if (!!(piece & Piece::ROOK))
-    {
+    case Piece::ROOK:
         return findPseudoRookMoves(square, pseudoLegalMoves);
-    }
-    else if (!!(piece & Piece::QUEEN))
-    {
+    case Piece::QUEEN:
         return findPseudoQueenMoves(square, pseudoLegalMoves);
-    }
-    else if (!!(piece & Piece::KING))
-    {
+    case Piece::KING:
         return findPseudoKingMoves(square, forPlayer, pseudoLegalMoves);
-    }
-    else if (!!(piece & Piece::BISHOP))
-    {
+    case Piece::BISHOP:
         return findPseudoBishopMoves(square, pseudoLegalMoves);
-    }
-    else if (!!(piece & Piece::KNIGHT))
-    {
+    case Piece::KNIGHT:
         return findPseudoKnightMoves(square, pseudoLegalMoves);
+    default:
+        break;
     }
 }
 
@@ -654,6 +648,13 @@ Move Board::constructCastlingMove(char firstSquare, char secondSquare)
     return move;
 }
 
+Move Board::constructEnPassantMove(char firstSquare, char secondSquare)
+{
+    char takeSquare = secondSquare + (playerInTurn == Color::WHITE ? -8 : 8);
+    Move move(firstSquare, secondSquare, takeSquare, -1);
+    return move;
+}
+
 Move Board::constructMove(const std::string& moveUCI)
 {
     assert(moveUCI.size() >= 4);
@@ -675,6 +676,12 @@ Move Board::constructMove(const std::string& moveUCI)
     {
         return constructCastlingMove(firstSquareIdx, secondSquareIdx);
     }
+
+    if (!!(firstSquareData & Piece::PAWN) && secondSquareIdx == enPassant)
+    {
+        return constructEnPassantMove(firstSquareIdx, secondSquareIdx);
+    }
+
     Move move(firstSquareIdx, secondSquareIdx);
     return move;
 }
@@ -847,6 +854,11 @@ void Board::setSquare(const char* sqr, Piece data)
 void Board::setSquare(char sqr, Piece data)
 {
     pieces[sqr] = data;
+}
+
+Piece Board::getSquare(char sqr) const
+{
+    return pieces[sqr];
 }
 
 Piece Board::getSquare(const char* sqr) const

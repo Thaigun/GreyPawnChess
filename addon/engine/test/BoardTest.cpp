@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -6,8 +7,8 @@
 
 #include "../src/Board.h"
 #include "../src/Move.h"
-
 #include "../src/ScopedProfiler.h"
+#include "../src/StringUtil.h"
 
 unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool divide = false)
 {
@@ -308,4 +309,26 @@ TEST(BoardTest, HashTest10)
 	Board board2 = Board::buildFromFEN("4k2r/7p/5q2/8/5QP1/5P2/2R2K2/n1R5 w k - 0 1");
 	unsigned int hash2 = board2.getHash();
 	ASSERT_EQ(hash1, hash2);
+}
+
+TEST(BoardTest, SpecificMoves1)
+{
+	// Test en passant take
+	Board board = Board::buildFromFEN("rnbqkb1r/ppp2ppp/8/8/P1PppPn1/8/1P4PP/RNBK1BNR b kq c3 0 7");
+	board.applyMove(board.constructMove("d4c3"));
+	Piece takenPiece = board.getSquare("c4");
+	ASSERT_EQ(takenPiece, Piece::NONE);
+}
+
+TEST(BoardTest, SpecificMoves2)
+{
+	std::string movesStr = "e2e4 e7e5 d1g4 g8f6 a2a4 f6g4 d2d4 e5d4 e1d1 d7d5 f2f4 d5e4 c2c4 d4c3 c1d2 c3d2 d1c2 d2d1q c2c3 c8e6 b2b4 d1d4";
+	auto movesList = StringUtil::split(movesStr);
+	Board board;
+	for (auto move : movesList)
+	{
+		board.applyMove(board.constructMove(move));
+	}
+	const std::vector<Move> moves = board.findPossibleMoves();
+	ASSERT_EQ(moves.size(), 1);
 }

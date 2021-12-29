@@ -36,6 +36,7 @@ add_executable(
     PieceTest.cpp
     # Engine files
     ../src/Board.cpp
+    ../src/BoardEvaluator.cpp
     ../src/BoardFuncs.cpp
     ../src/GameState.cpp
     ../src/GreyPawnChess.cpp
@@ -43,6 +44,7 @@ add_executable(
     ../src/Move.cpp
     ../src/PGNParsing.cpp
     ../src/Random.cpp
+    ../src/StringUtil.cpp
     ../src/TimeManagement.cpp
 )
 target_link_libraries(

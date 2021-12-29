@@ -16,6 +16,7 @@ public:
     std::vector<Move> findPossibleMoves() const;
     Move constructMove(const std::string& moveUCI);
     void applyMove(const Move& move);
+    Piece getSquare(char square) const;
     Piece getSquare(const char* sqr) const;
     Piece getSquare(char file, char rank) const;
     Color getCurrentPlayer() const;
@@ -39,6 +40,7 @@ private:
 
     Move constructPromotionMove(const std::string& moveUCI);
     Move constructCastlingMove(char firstSquare, char secondSquare);
+    Move constructEnPassantMove(char firstSSquare, char secondSquare);
 
     void findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>& pseudoMoves, bool pawnOnlyTakes = false, bool forceIncludePawnTakes = false) const;
     void findPseudoPawnMoves(char square, Color player, std::vector<Move>& moves, bool onlyTakes = false, bool forceIncludeTakes = false) const;
