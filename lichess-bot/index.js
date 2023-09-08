@@ -1,14 +1,9 @@
-// Node library requires
-const fs = require('fs');
-const https = require('https');
-const path = require('path');
-
-// Third party requires
-const axios = require('axios');
-const ndjson = require('ndjson');
-
-// Chess engine require
-const greypawnchess = require('grey-pawn-chess');
+import fs from 'fs';
+import https from 'https';
+import path from 'path';
+import axios from 'axios';
+import ndjson from 'ndjson';
+import greypawnchess from 'grey-pawn-chess';
 
 // Setup and config
 const baseUrl = 'https://lichess.org/api/';

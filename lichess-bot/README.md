@@ -1,2 +1,0 @@
-# GreyPawnChess
-Lichess chess bot.
