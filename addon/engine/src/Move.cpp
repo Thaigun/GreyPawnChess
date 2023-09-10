@@ -28,6 +28,23 @@ Move::Move(char from1, char to1, Piece prom)
     promotion = prom;
 }
 
+Move::Move(const std::string& uciString)
+{
+    from[0] = BoardFuncs::getSquareIndex(uciString.substr(0, 2));
+    to[0] = BoardFuncs::getSquareIndex(uciString.substr(2, 2));
+    if (uciString.length() == 5)
+    {
+        if (uciString[4] == 'q')
+            promotion = Piece::QUEEN;
+        else if (uciString[4] == 'n')
+            promotion = Piece::KNIGHT;
+        else if (uciString[4] == 'b')
+            promotion = Piece::BISHOP;
+        else if (uciString[4] == 'r')
+            promotion = Piece::ROOK;
+    }
+}
+
 bool Move::isCastling() const
 {
     return to[1] != -1;
