@@ -72,6 +72,8 @@ void GreyPawnChess::startGame()
                 if (possibleMoves.size() == 0)
                 {
                     MTX_LOCK
+                    if (gameEndCallBackSet)
+                        board.isCheck() ? gameEndReasonCallback("checkmate") : gameEndReasonCallback("draw");
                     running = false;
                 }
             }
@@ -119,6 +121,13 @@ void GreyPawnChess::setMoveCallback(std::function<void(const std::string&)> cb)
 {
     MTX_LOCK
     moveCallback = cb;
+}
+
+void GreyPawnChess::setGameEndReasonCallback(std::function<void(const std::string&)> cb)
+{
+    MTX_LOCK
+    gameEndCallBackSet = true;
+    gameEndReasonCallback = cb;
 }
 
 Duration GreyPawnChess::timeSinceStateSet() 
