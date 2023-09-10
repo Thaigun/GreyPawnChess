@@ -7,7 +7,7 @@ import greypawnchess from 'grey-pawn-chess';
 
 // Setup and config
 const baseUrl = 'https://lichess.org/api/';
-const configFile = fs.readFileSync(path.join(__dirname, 'lichess.config'));
+const configFile = fs.readFileSync('lichess.config');
 const config = JSON.parse(configFile);
 const authString = 'Bearer ' + config.apiKey;
 const userName = config.userName;
