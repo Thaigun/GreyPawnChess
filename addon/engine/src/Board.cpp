@@ -688,6 +688,7 @@ Move Board::constructMove(const std::string& moveUCI) const
 
 void Board::applyMove(const Move& move) 
 {
+    PROFILE("Board::applyMove");
     // Remove the old en passant file from the hash
     if (enPassant != -1)
     {
