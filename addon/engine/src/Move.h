@@ -16,7 +16,6 @@ struct Move
     Move(char from, char to);
     Move(char from1, char to1, char from2, char to2);
     Move(char from, char to, Piece prom);
-    Move(const std::string& uciStr);
 
     bool operator==(const Move& other)
     {
