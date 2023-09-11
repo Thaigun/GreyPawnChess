@@ -38,7 +38,20 @@ TEST(MonteCarloNodeTest, ManyIterations)
     EXPECT_EQ(root.nodeVisits(), iterations);
 }
 
-TEST(MonteCarloNodeTest, ForcedMate)
+TEST(MonteCarloNodeTest, ForcedMate1)
+{
+    MonteCarloNode root;
+    Board forcedMateInOne = Board::buildFromFEN("3q3k/5K/5NP/8/8/5r w - -");
+    unsigned int iterations = 1000u;
+    for (unsigned int i = 0u; i < iterations; i++)
+    {
+        root.runIteration(forcedMateInOne, 50u);
+    }
+    const Move bestMove = root.highestWinrateMove();
+    EXPECT_EQ(bestMove.asUCIstr(), "g6g7");
+}
+
+TEST(MonteCarloNodeTest, ForcedMate2)
 {
     MonteCarloNode root;
     Board forcedMateInTwo = Board::buildFromFEN("2r4k/6pp/5p2/7K/2R1r3/q4n2/2R5/8 w - - 0 1");
