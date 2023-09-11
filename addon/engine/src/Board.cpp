@@ -883,7 +883,7 @@ Color Board::getCurrentPlayer() const
 
 unsigned char Board::turnsSincePawnMoveOrCapture() const
 {
-    return repetitionHistory.size() / 2;
+    return movesSincePawnMoveOrCapture / 2;
 }
 
 bool Board::isCheck() const
@@ -950,7 +950,7 @@ bool Board::insufficientMaterial() const
 
 bool Board::noProgress() const 
 {
-    return turnsSincePawnMoveOrCapture() > 50u;
+    return turnsSincePawnMoveOrCapture() >= 50u;
 }
 
 bool Board::threefoldRepetition() const 
@@ -961,12 +961,14 @@ bool Board::threefoldRepetition() const
 void Board::updateRepetitionHistory()
 {
     highestRepetitionCount = std::max(++repetitionHistory[hash], highestRepetitionCount);
+    movesSincePawnMoveOrCapture++;
 }
 
 void Board::resetRepetitionHistory()
 {
     repetitionHistory.clear();
     highestRepetitionCount = 0u;
+    movesSincePawnMoveOrCapture = 0u;
 }
 
 unsigned int Board::getHash()

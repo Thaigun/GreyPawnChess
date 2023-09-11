@@ -80,4 +80,5 @@ private:
     unsigned int hash = 0;
     std::unordered_map<unsigned int, unsigned char> repetitionHistory;
     unsigned char highestRepetitionCount = 0u;
+    unsigned char movesSincePawnMoveOrCapture = 0u;
 };
