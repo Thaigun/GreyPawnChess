@@ -17,6 +17,7 @@ public:
     unsigned int nodeVisits() const;
     Move highestWinrateMove() const;
     MonteCarloNode getNodeForMove(const Move& move);
+    void printStats() const;
 
 private:
     // Actual implementation is this method. The public version takes a const reference to the board for safety reasons.

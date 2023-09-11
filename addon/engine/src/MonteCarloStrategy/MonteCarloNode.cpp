@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <cmath>
 #include <limits>
+#include <iostream>
 #include <vector>
 
 #include "../Board.h"
@@ -163,4 +164,12 @@ float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
     float whiteWinProb = (boardEval / (1 + std::abs(boardEval))) * 0.2f + 0.5f;
     float winProb = nodeColor == Color::WHITE ? whiteWinProb : 1.0f - whiteWinProb;
     return winProb;
+}
+
+void MonteCarloNode::printStats() const
+{
+    std::cout << "Node iterations: " << nodeIterations << std::endl;
+    std::cout << "Possible moves: " << possibleMoves.size() << std::endl;
+    std::cout << "Child nodes: " << childNodes.size() << std::endl;
+    std::cout << "Points: " << points << std::endl;
 }
