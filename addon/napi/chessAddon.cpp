@@ -7,6 +7,7 @@
 #include <thread>
 #include "../engine/src/GreyPawnChess.h"
 #include "../engine/src/MonteCarloStrategy/MonteCarloStrategy.h"
+#include "../engine/src/RandomStrategy/RandomStrategy.h"
 #include "../engine/src/GameState.h"
 
 /**
@@ -25,6 +26,10 @@ public:
 		if (stratName == "MonteCarlo")
 		{
 			game = std::make_unique<MonteCarloStrategy>();
+		}
+		else if (stratName == "Random") 
+		{
+			game = std::make_unique<RandomStrategy>();
 		}
 		else
 		{
