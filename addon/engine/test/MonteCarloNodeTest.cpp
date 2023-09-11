@@ -41,7 +41,7 @@ TEST(MonteCarloNodeTest, ManyIterations)
 TEST(MonteCarloNodeTest, ForcedMate1)
 {
     MonteCarloNode root;
-    Board forcedMateInOne = Board::buildFromFEN("3q3k/5K/5NP/8/8/5r/8/8 w - -");
+    Board forcedMateInOne = Board::buildFromFEN("3q3k/5K2/5NP1/8/8/5r2/8/8 w - - 0 1");
     unsigned int iterations = 1000u;
     for (unsigned int i = 0u; i < iterations; i++)
     {

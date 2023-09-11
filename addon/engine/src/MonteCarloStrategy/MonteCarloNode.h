@@ -12,7 +12,7 @@ class MonteCarloNode
 public:
     // Simulates the given board until the game ends or max number of moves are reached.
     void runIteration(const Board& board, unsigned int maxMoveCount = 15u);
-    float UCB1(unsigned int totalVisits);
+    float UCB1(unsigned int totalVisits, bool inversePoints = false);
     MonteCarloNode* highestUCB1Child(Move* populateMove);
     unsigned int nodeVisits() const;
     Move highestWinrateMove() const;

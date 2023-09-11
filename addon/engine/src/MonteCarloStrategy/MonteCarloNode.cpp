@@ -49,7 +49,7 @@ float MonteCarloNode::runOnBestChild(Board& board, unsigned int maxMoveCount)
     return 1.0f - childResult;
 }
 
-float MonteCarloNode::UCB1(unsigned int totalVisits)
+float MonteCarloNode::UCB1(unsigned int totalVisits, bool inversePoints)
 {
     if (!nodeIterations)
     {
@@ -57,6 +57,10 @@ float MonteCarloNode::UCB1(unsigned int totalVisits)
     }
 
     float exploitationFactor = points / nodeIterations;
+    if (inversePoints)
+    {
+        exploitationFactor = 1.0f - exploitationFactor;
+    }
     float explorationFactor = 2 * float(std::sqrt(std::log(totalVisits) / nodeIterations));
     return exploitationFactor + explorationFactor;
 }
@@ -67,7 +71,7 @@ MonteCarloNode *MonteCarloNode::highestUCB1Child(Move *populateMove)
     MonteCarloNode *bestChild = nullptr;
     for (int i = 0; i < childNodes.size(); i++)
     {
-        float thisChildUCB1 = childNodes[i].UCB1(nodeIterations);
+        float thisChildUCB1 = childNodes[i].UCB1(nodeIterations, true);
         if (thisChildUCB1 > bestChildUCB1)
         {
             *populateMove = possibleMoves[i];
@@ -94,7 +98,7 @@ Move MonteCarloNode::highestWinrateMove() const
         if (childNodes[i].nodeIterations == 0u)
             continue;
 
-        float childWinrate = childNodes[i].points / childNodes[i].nodeIterations;
+        float childWinrate = 1.0f - (childNodes[i].points / childNodes[i].nodeIterations);
         if (childWinrate > bestWinRate)
         {
             bestWinRate = childWinrate;
@@ -152,7 +156,7 @@ float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
             }
             return 0.5f;
         }
-        if (board.insufficientMaterial())
+        if (board.insufficientMaterial() || board.noProgress() || board.threefoldRepetition())
         {
             return 0.5f;
         }
