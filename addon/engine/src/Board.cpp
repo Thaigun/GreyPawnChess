@@ -499,7 +499,7 @@ bool Board::isThreatened(char square, Color byPlayer) const
     PROFILE("Board::isThreatened");
     // Threats are symmetric: if a knight in this square would threaten a knight of the other player,
     // the other knight would also threaten this square.
-    // Hence, for each piece typewe check if such piece in this square would threaten a similar piece of the other player.
+    // Hence, for each piece typee check if such piece in this square would threaten a similar piece of the other player.
     // If that's true for any piece type, then this square is threatened.
     Piece testPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
     Piece opponentColor = ~testPlayerColor & Piece::COLOR_MASK;
@@ -610,7 +610,7 @@ bool Board::isThreatened(char square, Color byPlayer) const
     return false;
 }
 
-Move Board::constructPromotionMove(const std::string& moveUCI)
+Move Board::constructPromotionMove(const std::string& moveUCI) const
 {
     const char* moveStr = moveUCI.c_str();
     const char firstSquareIdx = BoardFuncs::getSquareIndex(moveStr);
@@ -637,7 +637,7 @@ Move Board::constructPromotionMove(const std::string& moveUCI)
     return move;
 }
 
-Move Board::constructCastlingMove(char firstSquare, char secondSquare)
+Move Board::constructCastlingMove(char firstSquare, char secondSquare) const
 {
     char rank = playerInTurn == Color::WHITE ? 0 : 7;
     char rookFile = firstSquare > secondSquare ? queenRookFile : kingRookFile;
@@ -648,14 +648,14 @@ Move Board::constructCastlingMove(char firstSquare, char secondSquare)
     return move;
 }
 
-Move Board::constructEnPassantMove(char firstSquare, char secondSquare)
+Move Board::constructEnPassantMove(char firstSquare, char secondSquare) const
 {
     char takeSquare = secondSquare + (playerInTurn == Color::WHITE ? -8 : 8);
     Move move(firstSquare, secondSquare, takeSquare, -1);
     return move;
 }
 
-Move Board::constructMove(const std::string& moveUCI)
+Move Board::constructMove(const std::string& moveUCI) const
 {
     assert(moveUCI.size() >= 4);
 
@@ -732,6 +732,8 @@ void Board::applyMove(const Move& move)
         // Update en passant square
         if (!!(movePiece & Piece::PAWN))
         {
+            // A pawn move clears the repetition history because they can never go back.
+            resetRepetitionHistory();
             // Moved two ranks to either direction?
             if (std::abs(from - to) == (char)16)
             {
@@ -749,6 +751,8 @@ void Board::applyMove(const Move& move)
             Piece targetPiece = pieces[to];
             if (targetPiece != Piece::NONE)
             {
+                // A capture is also irrevertible and clears the repetition history.
+                resetRepetitionHistory();
                 hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(targetPiece)];
             }
 
@@ -792,6 +796,7 @@ void Board::applyMove(const Move& move)
     // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
     hash ^= getZobristHashTable()[12 * 64];
+    updateRepetitionHistory();
 }
 
 void Board::updateCastlingRights()
@@ -876,6 +881,11 @@ Color Board::getCurrentPlayer() const
     return playerInTurn;
 }
 
+unsigned char Board::turnsSincePawnMoveOrCapture() const
+{
+    return repetitionHistory.size() / 2;
+}
+
 bool Board::isCheck() const
 {
     Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
@@ -936,6 +946,27 @@ bool Board::insufficientMaterial() const
             return false;
     }
     return true;
+}
+
+bool Board::noProgress() const 
+{
+    return turnsSincePawnMoveOrCapture() > 50u;
+}
+
+bool Board::threefoldRepetition() const 
+{
+    return highestRepetitionCount >= 3u;
+}   
+
+void Board::updateRepetitionHistory()
+{
+    highestRepetitionCount = std::max(++repetitionHistory[hash], highestRepetitionCount);
+}
+
+void Board::resetRepetitionHistory()
+{
+    repetitionHistory.clear();
+    highestRepetitionCount = 0u;
 }
 
 unsigned int Board::getHash()

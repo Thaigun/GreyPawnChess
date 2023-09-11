@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "GameState.h"
 #include "Move.h"
@@ -14,7 +15,7 @@ public:
     static Board buildFromFEN(const std::string& fenString);
 
     std::vector<Move> findPossibleMoves() const;
-    Move constructMove(const std::string& moveUCI);
+    Move constructMove(const std::string& moveUCI) const;
     void applyMove(const Move& move);
     Piece getSquare(char square) const;
     Piece getSquare(const char* sqr) const;
@@ -23,6 +24,8 @@ public:
     bool isCheck() const;
     bool isMate() const;
     bool insufficientMaterial() const;
+    bool noProgress() const;
+    bool threefoldRepetition() const;
     std::string getFEN() const;
     unsigned int getHash();
 
@@ -36,11 +39,12 @@ private:
     bool checkMoveLegality(const Move& move) const;
     char findSquareWithPiece(Piece piece) const;
     bool isThreatened(char square, Color byPlayer) const;
+    unsigned char turnsSincePawnMoveOrCapture() const;
     static bool areSameColor(Piece p1, Piece p2);
 
-    Move constructPromotionMove(const std::string& moveUCI);
-    Move constructCastlingMove(char firstSquare, char secondSquare);
-    Move constructEnPassantMove(char firstSSquare, char secondSquare);
+    Move constructPromotionMove(const std::string& moveUCI) const;
+    Move constructCastlingMove(char firstSquare, char secondSquare) const;
+    Move constructEnPassantMove(char firstSSquare, char secondSquare) const;
 
     void findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>& pseudoMoves, bool pawnOnlyTakes = false, bool forceIncludePawnTakes = false) const;
     void findPseudoPawnMoves(char square, Color player, std::vector<Move>& moves, bool onlyTakes = false, bool forceIncludeTakes = false) const;
@@ -55,6 +59,8 @@ private:
     void initHash();
     static unsigned int* getZobristHashTable();
     static int zobristPieceKey(Piece piece);
+    void updateRepetitionHistory();
+    void resetRepetitionHistory();
 
     // Squares are in order from white's perspective left to right, bottom to top. 
     // a1, b1, c1 ... a2, b2, c2
@@ -72,4 +78,6 @@ private:
     char enPassant = -1;
 
     unsigned int hash = 0;
+    std::unordered_map<unsigned int, unsigned char> repetitionHistory;
+    unsigned char highestRepetitionCount = 0u;
 };

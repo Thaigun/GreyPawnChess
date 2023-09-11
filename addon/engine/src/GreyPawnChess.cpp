@@ -39,7 +39,17 @@ void GreyPawnChess::startGame()
                     applyMove(move);
                     std::vector<Move> possibleMoves = board.findPossibleMoves();
                     if (possibleMoves.size() == 0)
+                    {
+                        if (gameEndCallbackSet)
+                            board.isCheck() ? gameEndReasonCallback("lose") : gameEndReasonCallback("draw");
                         return;
+                    }
+                    if (board.threefoldRepetition() || board.insufficientMaterial() || board.noProgress())
+                    {
+                        if (gameEndCallbackSet)
+                            gameEndReasonCallback("draw");
+                        return;
+                    }
                 }
             }
 
@@ -72,8 +82,15 @@ void GreyPawnChess::startGame()
                 if (possibleMoves.size() == 0)
                 {
                     MTX_LOCK
-                    if (gameEndCallBackSet)
+                    if (gameEndCallbackSet)
                         board.isCheck() ? gameEndReasonCallback("checkmate") : gameEndReasonCallback("draw");
+                    running = false;
+                }
+                if (board.threefoldRepetition() || board.insufficientMaterial() || board.noProgress())
+                {
+                    MTX_LOCK
+                    if (gameEndCallbackSet)
+                        gameEndReasonCallback("draw");
                     running = false;
                 }
             }
@@ -126,7 +143,7 @@ void GreyPawnChess::setMoveCallback(std::function<void(const std::string&)> cb)
 void GreyPawnChess::setGameEndReasonCallback(std::function<void(const std::string&)> cb)
 {
     MTX_LOCK
-    gameEndCallBackSet = true;
+    gameEndCallbackSet = true;
     gameEndReasonCallback = cb;
 }
 

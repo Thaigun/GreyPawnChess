@@ -46,7 +46,7 @@ protected:
 
     // Members used to manage the worker thread and by the worker thread.
     std::function<void(std::string)> moveCallback;
-    bool gameEndCallBackSet = false;
+    bool gameEndCallbackSet = false;
     std::function<void(std::string)> gameEndReasonCallback;
     std::thread workThread;
     std::mutex mtx;
