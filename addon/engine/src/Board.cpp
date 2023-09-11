@@ -686,6 +686,11 @@ Move Board::constructMove(const std::string& moveUCI) const
     return move;
 }
 
+void Board::applyMove(const std::string& moveUCI) 
+{
+    applyMove(constructMove(moveUCI));
+}
+
 void Board::applyMove(const Move& move) 
 {
     PROFILE("Board::applyMove");

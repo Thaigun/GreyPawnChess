@@ -17,6 +17,7 @@ public:
     std::vector<Move> findPossibleMoves() const;
     Move constructMove(const std::string& moveUCI) const;
     void applyMove(const Move& move);
+    void applyMove(const std::string& moveUCI);
     Piece getSquare(char square) const;
     Piece getSquare(const char* sqr) const;
     Piece getSquare(char file, char rank) const;
@@ -78,6 +79,7 @@ private:
     char enPassant = -1;
 
     unsigned int hash = 0;
+    // Copying this is slow and expensive, consider changing something.
     std::unordered_map<unsigned int, unsigned char> repetitionHistory;
     unsigned char highestRepetitionCount = 0u;
     unsigned char movesSincePawnMoveOrCapture = 0u;
