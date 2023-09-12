@@ -79,8 +79,12 @@ private:
     char enPassant = -1;
 
     unsigned int hash = 0;
-    // Copying this is slow and expensive, consider changing something.
-    std::unordered_map<unsigned int, unsigned char> repetitionHistory;
+    
+    unsigned int repeatablePositionsWhite[50];
+    unsigned char whitePositionsSize = 0u;
+
+    unsigned int repeatablePositionsBlack[50];
+    unsigned char blackPositionSize = 0u;
+    
     unsigned char highestRepetitionCount = 0u;
-    unsigned char movesSincePawnMoveOrCapture = 0u;
 };

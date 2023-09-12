@@ -46,6 +46,8 @@ Board::Board()
     }
 
     initHash();
+
+    updateRepetitionHistory();
 }
 
 Board Board::buildFromFEN(const std::string& fenString)
@@ -147,6 +149,10 @@ Board Board::buildFromFEN(const std::string& fenString)
         newBoard.enPassant = BoardFuncs::getSquareIndex(fenParts[3]);
     }
     newBoard.initHash();
+
+    newBoard.resetRepetitionHistory();
+    newBoard.updateRepetitionHistory();
+    
     return newBoard;
 }
 
@@ -798,8 +804,6 @@ void Board::applyMove(const Move& move)
             hash ^= getZobristHashTable()[12 * 64 + 1 + i];
         }
     }
-
-    // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
     hash ^= getZobristHashTable()[12 * 64];
     updateRepetitionHistory();
@@ -889,7 +893,11 @@ Color Board::getCurrentPlayer() const
 
 unsigned char Board::turnsSincePawnMoveOrCapture() const
 {
-    return movesSincePawnMoveOrCapture / 2;
+    if (whitePositionsSize == 0u && blackPositionSize == 0u)
+    {
+        return 0u;
+    }
+    return std::max(whitePositionsSize, blackPositionSize) - 1;
 }
 
 bool Board::isCheck() const
@@ -966,15 +974,37 @@ bool Board::threefoldRepetition() const
 
 void Board::updateRepetitionHistory()
 {
-    highestRepetitionCount = std::max(++repetitionHistory[hash], highestRepetitionCount);
-    movesSincePawnMoveOrCapture++;
+    unsigned char repeatCount = 1u;
+    if (playerInTurn == Color::WHITE)
+    {
+        for (int i = 0; i < whitePositionsSize; i++)
+        {
+            if (repeatablePositionsWhite[i] == hash)
+            {
+                repeatCount++;
+            }
+        }
+        repeatablePositionsWhite[whitePositionsSize++] = hash;
+    }
+    else 
+    {
+        for (int i = 0; i < blackPositionSize; i++)
+        {
+            if (repeatablePositionsBlack[i] == hash)
+            {
+                repeatCount++;
+            }
+        }
+        repeatablePositionsBlack[blackPositionSize++] = hash;
+    }
+    highestRepetitionCount = std::max(highestRepetitionCount, repeatCount);
 }
 
 void Board::resetRepetitionHistory()
 {
-    repetitionHistory.clear();
     highestRepetitionCount = 0u;
-    movesSincePawnMoveOrCapture = 0u;
+    whitePositionsSize = 0u;
+    blackPositionSize = 0u;
 }
 
 unsigned int Board::getHash()

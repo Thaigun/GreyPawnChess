@@ -267,9 +267,11 @@ TEST(BoardTest, DetectRepetitionFromStart)
 	{
 		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("b1c3");
+		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("b8c6");
 		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("c3b1");
+		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("c6b8");
 	}
 	ASSERT_TRUE(board.threefoldRepetition());
@@ -284,28 +286,35 @@ TEST(BoardTest, DetectRepetitionMidGame)
 	{
 		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("b1c3");
+		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("b8c6");
 		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("c3b1");
+		ASSERT_FALSE(board.threefoldRepetition());
 		board.applyMove("c6b8");
 	}
 	ASSERT_TRUE(board.threefoldRepetition());
 }
 
-// TEST(BoardTest, RepetitiveButDifferentPlayer)
-// {
+TEST(BoardTest, RepetitiveButDifferentPlayer)
+{
 
-// }
+}
 
-// TEST(BoardTest, RepetitiveButDiffCastlingRights)
-// {
+TEST(BoardTest, RepetitiveButDiffCastlingRights)
+{
 
-// }
+}
 
-// TEST(BoardTest, RepetitiveButDifferentEnPassant)
-// {
+TEST(BoardTest, RepetitiveButDifferentEnPassant)
+{
 
-// }
+}
+
+TEST(BoardTest, DetectRepetitionAfterFENInit)
+{
+
+}
 
 // https://www.chessprogramming.org/Perft_Results
 TEST(BoardTest, LegalMoves1) 
