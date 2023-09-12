@@ -173,16 +173,21 @@ TEST(BoardTest, HashTest6)
 
 TEST(BoardTest, HashTest7)
 {
-	// En passant square should change the hash
+	// En passant square should change the hash if there is a piece to take it
 	Board board;
-	board.applyMove(board.constructMove("d2d4"));
-	board.applyMove(board.constructMove("d7d5"));
+	board.applyMove("d2d4");
+	board.applyMove("d7d6");
+	board.applyMove("d4d5");
+	board.applyMove("e7e5");
 	unsigned int enPassantHash = board.getHash();
 	Board board2;
-	board2.applyMove(board2.constructMove("d2d3"));
-	board2.applyMove(board2.constructMove("d7d6"));
-	board2.applyMove(board2.constructMove("d3d4"));
-	board2.applyMove(board2.constructMove("d6d5"));
+	// 1. d3 d6 2. d4 e6 3. d5 e5
+	board2.applyMove("d2d3");
+	board2.applyMove("d7d6");
+	board2.applyMove("d3d4");
+	board2.applyMove("e7e6");
+	board2.applyMove("d4d5");
+	board2.applyMove("e6e5");
 	unsigned int noEnPassantHash = board2.getHash();
 	ASSERT_NE(enPassantHash, noEnPassantHash);
 }

@@ -37,10 +37,11 @@ private:
     static char stepSquareInDirection(char square, MoveDirection direction);
 
     void updateCastlingRights();
-    void findLegalMovesForSquare(char square, std::vector<Move> &moveList) const;
+    void findLegalMovesForSquare(char square, std::vector<Move>& moveList) const;
     bool checkMoveLegality(const Move& move) const;
     char findSquareWithPiece(Piece piece) const;
     bool isThreatened(char square, Color byPlayer) const;
+    bool hasPawnThreat(char square, Color byPlayer) const;
     unsigned char turnsSincePawnMoveOrCapture() const;
     static bool areSameColor(Piece p1, Piece p2);
 

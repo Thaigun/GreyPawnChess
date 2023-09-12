@@ -539,19 +539,8 @@ bool Board::isThreatened(char square, Color byPlayer) const
     }
 
     // Test for pawn threat
-    MoveDirection possibleThreats[2];
-    possibleThreats[0] = testPlayerColor == Piece::WHITE ? MoveDirection::NE : MoveDirection::SE;
-    possibleThreats[1] = testPlayerColor == Piece::WHITE ? MoveDirection::NW : MoveDirection::SW;
-    for (int i = 0; i < 2; i++)
-    {
-        char threatSquare = stepSquareInDirection(square, possibleThreats[i]);
-        if (threatSquare != char(-1))
-        {
-            Piece threatPiece = pieces[threatSquare];
-            if (threatPiece == (opponentColor | Piece::PAWN))
-                return true;
-        }
-    }
+    if (hasPawnThreat(square, byPlayer))
+        return true;
 
     // Test for king threat
     MoveDirection kingDirections[8] = {
@@ -621,6 +610,25 @@ bool Board::isThreatened(char square, Color byPlayer) const
         }
     }
 
+    return false;
+}
+
+bool Board::hasPawnThreat(char square, Color byPlayer) const
+{
+    Piece byPlayerColor = byPlayer == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    MoveDirection possibleThreats[2];
+    possibleThreats[0] = byPlayerColor == Piece::BLACK ? MoveDirection::NE : MoveDirection::SE;
+    possibleThreats[1] = byPlayerColor == Piece::BLACK ? MoveDirection::NW : MoveDirection::SW;
+    for (int i = 0; i < 2; i++)
+    {
+        char threatSquare = stepSquareInDirection(square, possibleThreats[i]);
+        if (threatSquare != char(-1))
+        {
+            Piece threatPiece = pieces[threatSquare];
+            if (threatPiece == (byPlayerColor | Piece::PAWN))
+                return true;
+        }
+    }
     return false;
 }
 
@@ -756,10 +764,14 @@ void Board::applyMove(const Move& move)
             if (std::abs(from - to) == (char)16)
             {
                 // En passant square is between from and to.
-                enPassant = (from + to) / 2;
-                // Add the new en passant file to the hash
-                int enPassantFile = enPassant % 8;
-                hash.toggleEnPassant(enPassantFile);
+                char enPassantCandidate = (from + to) / 2;
+                if (hasPawnThreat(enPassantCandidate, playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE))
+                {
+                    // Add the new en passant file to the hash
+                    enPassant = enPassantCandidate;
+                    int enPassantFile = enPassantCandidate % 8;
+                    hash.toggleEnPassant(enPassantFile);
+                }
             }
         }
         pieces[from] = Piece::NONE;
@@ -819,7 +831,7 @@ void Board::applyMove(const Move& move)
     {
         hash.toggleCastlingRights(Color::BLACK, 'q');
     }
-    
+
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
     hash.togglePlayerInTurn();
     updateRepetitionHistory();
