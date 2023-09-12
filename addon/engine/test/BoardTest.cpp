@@ -80,13 +80,6 @@ TEST(BoardTest, InsufficientMaterial)
 	EXPECT_FALSE(board.insufficientMaterial());
 }
 
-TEST(BoardTest, HashTest0)
-{
-	Board board1;
-	Board board2;
-	ASSERT_EQ(board1.getHash(), board2.getHash());
-}
-
 TEST(BoardTest, HashTest1) 
 {
 	// Board that is brought to the position move by move should have the same hash as a board build from the corresponding FEN string

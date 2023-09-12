@@ -45,7 +45,7 @@ Board::Board()
         pieces[square] = Piece::NONE;
     }
 
-    initHash();
+    hash.initHash(pieces, playerInTurn, whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen, enPassant);
 
     updateRepetitionHistory();
 }
@@ -148,7 +148,15 @@ Board Board::buildFromFEN(const std::string& fenString)
     {
         newBoard.enPassant = BoardFuncs::getSquareIndex(fenParts[3]);
     }
-    newBoard.initHash();
+    newBoard.hash.initHash(
+        newBoard.pieces, 
+        newBoard.playerInTurn, 
+        newBoard.whiteCanCastleKing, 
+        newBoard.whiteCanCastleQueen, 
+        newBoard.blackCanCastleKing, 
+        newBoard.blackCanCastleQueen, 
+        newBoard.enPassant
+    );
 
     newBoard.resetRepetitionHistory();
     newBoard.updateRepetitionHistory();
@@ -704,7 +712,7 @@ void Board::applyMove(const Move& move)
     if (enPassant != -1)
     {
         int enPassantFile = enPassant % 8;
-        hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
+        hash.toggleEnPassant(enPassantFile);
         enPassant = -1;
     }
 
@@ -730,7 +738,7 @@ void Board::applyMove(const Move& move)
         Piece movePiece = movePieces[i];
 
         // Update the Zobrist hash, remove the piece from the old square
-        hash ^= getZobristHashTable()[(int)from * 12 + zobristPieceKey(movePiece)];
+        hash.togglePiece(from, movePiece);
 
         // Prepare potential promotion
         if (move.promotion != Piece::NONE)
@@ -751,7 +759,7 @@ void Board::applyMove(const Move& move)
                 enPassant = (from + to) / 2;
                 // Add the new en passant file to the hash
                 int enPassantFile = enPassant % 8;
-                hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
+                hash.toggleEnPassant(enPassantFile);
             }
         }
         pieces[from] = Piece::NONE;
@@ -763,12 +771,12 @@ void Board::applyMove(const Move& move)
             {
                 // A capture is also irrevertible and clears the repetition history.
                 resetRepetitionHistory();
-                hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(targetPiece)];
+                hash.togglePiece(to, targetPiece);
             }
 
             pieces[to] = movePiece;
             // Update the Zobrist hash, add the piece to the new square
-            hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(movePiece)];
+            hash.togglePiece(to, movePiece);
         }
     }
 
@@ -795,15 +803,25 @@ void Board::applyMove(const Move& move)
     bool newCastlingRights[4] = { whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen };
 
     // Update the hash with the new castling rights
-    for (int i = 0; i < 4; i++)
+    if (oldCastlingRights[0] != newCastlingRights[0])
     {
-        if (oldCastlingRights[i] != newCastlingRights[i])
-        {
-            hash ^= getZobristHashTable()[12 * 64 + 1 + i];
-        }
+        hash.toggleCastlingRights(Color::WHITE, 'k');
     }
+    if (oldCastlingRights[1] != newCastlingRights[1])
+    {
+        hash.toggleCastlingRights(Color::WHITE, 'q');
+    }
+    if (oldCastlingRights[2] != newCastlingRights[2])
+    {
+        hash.toggleCastlingRights(Color::BLACK, 'k');
+    }
+    if (oldCastlingRights[3] != newCastlingRights[3])
+    {
+        hash.toggleCastlingRights(Color::BLACK, 'q');
+    }
+    
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
-    hash ^= getZobristHashTable()[12 * 64];
+    hash.togglePlayerInTurn();
     updateRepetitionHistory();
 }
 
@@ -977,23 +995,23 @@ void Board::updateRepetitionHistory()
     {
         for (int i = 0; i < whitePositionsSize; i++)
         {
-            if (repeatablePositionsWhite[i] == hash)
+            if (repeatablePositionsWhite[i] == hash.getHash())
             {
                 repeatCount++;
             }
         }
-        repeatablePositionsWhite[whitePositionsSize++] = hash;
+        repeatablePositionsWhite[whitePositionsSize++] = hash.getHash();
     }
     else 
     {
         for (int i = 0; i < blackPositionsSize; i++)
         {
-            if (repeatablePositionsBlack[i] == hash)
+            if (repeatablePositionsBlack[i] == hash.getHash())
             {
                 repeatCount++;
             }
         }
-        repeatablePositionsBlack[blackPositionsSize++] = hash;
+        repeatablePositionsBlack[blackPositionsSize++] = hash.getHash();
     }
     highestRepetitionCount = std::max(highestRepetitionCount, repeatCount);
 }
@@ -1007,108 +1025,5 @@ void Board::resetRepetitionHistory()
 
 unsigned int Board::getHash()
 {
-    return hash;
-}
-
-void Board::initHash()
-{
-    hash = 0u;
-    for (int i = 0; i < 64; i++)
-    {
-        if (pieces[i] != Piece::NONE)
-        {
-            int pieceIdx = zobristPieceKey(pieces[i]);
-            hash ^= getZobristHashTable()[i * 12 + pieceIdx];
-        }
-    }
-    if (playerInTurn == Color::WHITE)
-    {
-        hash ^= getZobristHashTable()[64 * 12];
-    }
-    if (whiteCanCastleKing)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 1];
-    }
-    if (whiteCanCastleQueen)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 2];
-    }
-    if (blackCanCastleKing)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 3];
-    }
-    if (blackCanCastleQueen)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 4];
-    }
-    if (enPassant != -1)
-    {
-        int enPassantFile = enPassant % 8;
-        hash ^= getZobristHashTable()[64 * 12 + 5 + enPassantFile];
-    }
-}
-
-int Board::zobristPieceKey(Piece piece) 
-{
-    switch (uint16_t(piece))
-    {
-    case (uint16_t(Piece::PAWN | Piece::WHITE)):
-        return 0;
-        break;
-    case (uint16_t(Piece::KNIGHT | Piece::WHITE)):
-        return 1;
-        break;
-    case (uint16_t(Piece::BISHOP | Piece::WHITE)):
-        return 2;
-        break;
-    case (uint16_t(Piece::ROOK | Piece::WHITE)):
-        return 3;
-        break;
-    case (uint16_t(Piece::QUEEN | Piece::WHITE)):
-        return 4;
-        break;
-    case (uint16_t(Piece::KING | Piece::WHITE)):
-        return 5;
-        break;
-    case (uint16_t(Piece::PAWN | Piece::BLACK)):
-        return 6;
-        break;
-    case (uint16_t(Piece::KNIGHT | Piece::BLACK)):
-        return 7;
-        break;
-    case (uint16_t(Piece::BISHOP | Piece::BLACK)):
-        return 8;
-        break;
-    case (uint16_t(Piece::ROOK | Piece::BLACK)):
-        return 9;
-        break;
-    case (uint16_t(Piece::QUEEN | Piece::BLACK)):
-        return 10;
-        break;
-    case (uint16_t(Piece::KING | Piece::BLACK)):
-        return 11;
-        break;
-
-    default:
-        return 0;
-        break;
-    }
-}
-
-unsigned int* Board::getZobristHashTable()
-{
-    // 64 squares, 12 different pieces, 1 for player in turn, 4 for castling rights, 8 for en passant file
-    static unsigned int zobristHashTable[64 * 12 + 1 + 4 + 8];
-    static bool initialized = false;
-    if (!initialized)
-    {
-        // If the hash is not yet calculated, calculate it.
-        constexpr int nNumbers = 64 * 12 + 1 + 4 + 8;
-        for (int i = 0; i < nNumbers; i++)
-        {
-            zobristHashTable[i] = Random::Range(0u, UINT_MAX);
-        }
-        initialized = true;
-    }
-    return zobristHashTable;
+    return hash.getHash();
 }

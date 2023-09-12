@@ -7,6 +7,7 @@
 #include "GameState.h"
 #include "Move.h"
 #include "Piece.h"
+#include "ZobristHash.h"
 
 class Board 
 {
@@ -57,9 +58,6 @@ private:
     void findPseudoKnightMoves(char square, std::vector<Move>& moves) const;
     void findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps = 1000000) const;
 
-    void initHash();
-    static unsigned int* getZobristHashTable();
-    static int zobristPieceKey(Piece piece);
     void updateRepetitionHistory();
     void resetRepetitionHistory();
 
@@ -78,7 +76,7 @@ private:
     // Square which is available for an en passant take on this move.
     char enPassant = -1;
 
-    unsigned int hash = 0;
+    ZobristHash hash;
     
     unsigned int repeatablePositionsWhite[50];
     unsigned char whitePositionsSize = 0u;
