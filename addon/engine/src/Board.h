@@ -84,7 +84,7 @@ private:
     unsigned char whitePositionsSize = 0u;
 
     unsigned int repeatablePositionsBlack[50];
-    unsigned char blackPositionSize = 0u;
+    unsigned char blackPositionsSize = 0u;
     
     unsigned char highestRepetitionCount = 0u;
 };

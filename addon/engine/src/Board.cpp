@@ -705,10 +705,8 @@ void Board::applyMove(const Move& move)
     {
         int enPassantFile = enPassant % 8;
         hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
+        enPassant = -1;
     }
-
-    // Reset, it will be set again if needed
-    enPassant = -1;
 
     // In 960, the king might be moving where the rook is at the moment. For this reason,
     // we store both pieces before moving anything, to not lose the piece data.
@@ -732,7 +730,7 @@ void Board::applyMove(const Move& move)
         Piece movePiece = movePieces[i];
 
         // Update the Zobrist hash, remove the piece from the old square
-        hash ^= getZobristHashTable()[from * 12 + zobristPieceKey(movePiece)];
+        hash ^= getZobristHashTable()[(int)from * 12 + zobristPieceKey(movePiece)];
 
         // Prepare potential promotion
         if (move.promotion != Piece::NONE)
@@ -893,11 +891,11 @@ Color Board::getCurrentPlayer() const
 
 unsigned char Board::turnsSincePawnMoveOrCapture() const
 {
-    if (whitePositionsSize == 0u && blackPositionSize == 0u)
+    if (whitePositionsSize == 0u && blackPositionsSize == 0u)
     {
         return 0u;
     }
-    return std::max(whitePositionsSize, blackPositionSize) - 1;
+    return std::max(whitePositionsSize, blackPositionsSize) - 1;
 }
 
 bool Board::isCheck() const
@@ -988,14 +986,14 @@ void Board::updateRepetitionHistory()
     }
     else 
     {
-        for (int i = 0; i < blackPositionSize; i++)
+        for (int i = 0; i < blackPositionsSize; i++)
         {
             if (repeatablePositionsBlack[i] == hash)
             {
                 repeatCount++;
             }
         }
-        repeatablePositionsBlack[blackPositionSize++] = hash;
+        repeatablePositionsBlack[blackPositionsSize++] = hash;
     }
     highestRepetitionCount = std::max(highestRepetitionCount, repeatCount);
 }
@@ -1004,7 +1002,7 @@ void Board::resetRepetitionHistory()
 {
     highestRepetitionCount = 0u;
     whitePositionsSize = 0u;
-    blackPositionSize = 0u;
+    blackPositionsSize = 0u;
 }
 
 unsigned int Board::getHash()
@@ -1099,6 +1097,7 @@ int Board::zobristPieceKey(Piece piece)
 
 unsigned int* Board::getZobristHashTable()
 {
+    // 64 squares, 12 different pieces, 1 for player in turn, 4 for castling rights, 8 for en passant file
     static unsigned int zobristHashTable[64 * 12 + 1 + 4 + 8];
     static bool initialized = false;
     if (!initialized)

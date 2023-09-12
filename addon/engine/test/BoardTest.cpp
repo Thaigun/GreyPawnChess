@@ -238,6 +238,21 @@ TEST(BoardTest, HashTest10)
 	ASSERT_EQ(hash1, hash2);
 }
 
+TEST(BoardTest, HashTest11)
+{
+	// Moving forward and back after initial pawn moves should end up in same hash.
+	Board board;
+	board.applyMove("e2e4");
+	board.applyMove("e7e5");
+	unsigned int hash1 = board.getHash();
+	board.applyMove("b1c3");
+	board.applyMove("b8c6");
+	board.applyMove("c3b1");
+	board.applyMove("c6b8");
+	unsigned int hash2 = board.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
 TEST(BoardTest, SpecificMoves1)
 {
 	// Test en passant take
