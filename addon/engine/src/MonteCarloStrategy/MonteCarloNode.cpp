@@ -65,18 +65,22 @@ float MonteCarloNode::UCB1(unsigned int totalVisits, bool inversePoints)
 
 MonteCarloNode *MonteCarloNode::highestUCB1Child(Move *populateMove)
 {
+    if (childNodes.size() == 0u)
+        return nullptr;
+
     float bestChildUCB1 = -1.0f;
     int bestChildIdx = -1;
     for (int i = 0; i < childNodes.size(); i++)
     {
         float thisChildUCB1 = childNodes[i].UCB1(nodeIterations, true);
-        if (thisChildUCB1 == FLT_MAX)
-            return &childNodes[i];
-        
         if (thisChildUCB1 > bestChildUCB1)
         {
             bestChildIdx = i;   
             bestChildUCB1 = thisChildUCB1;
+        }
+        if (thisChildUCB1 == FLT_MAX)
+        {
+            break;
         }
     }
     *populateMove = possibleMoves[bestChildIdx];
