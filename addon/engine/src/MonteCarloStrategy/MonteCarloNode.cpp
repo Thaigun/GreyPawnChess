@@ -13,13 +13,10 @@
 void MonteCarloNode::runIteration(const Board &board, unsigned int maxMoveCount)
 {
     Board iterationBoard = board;
-    if (++nodeIterations == 1u) {
-        expand(iterationBoard);
-    }
-    points += runOnBestChild(iterationBoard, maxMoveCount);
+    runIterationOnBoard(iterationBoard, maxMoveCount, true);
 }
 
-float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int maxMoveCount)
+float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int maxMoveCount, bool isRoot)
 {
     nodeIterations++;
     float playoutResult;
@@ -27,13 +24,14 @@ float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int maxMoveCoun
     {
         playoutResult = points / nodeIterations;
     }
-    else if (nodeIterations == 1u)
+    else if (nodeIterations == 1u && !isRoot)
     {
-        expand(board);
         playoutResult = randomPlayout(board, maxMoveCount);
     }
     else
     {
+        if (childNodes.size() == 0u)
+            expand(board);
         playoutResult = runOnBestChild(board, maxMoveCount);
     }
     points += playoutResult;
@@ -68,20 +66,21 @@ float MonteCarloNode::UCB1(unsigned int totalVisits, bool inversePoints)
 MonteCarloNode *MonteCarloNode::highestUCB1Child(Move *populateMove)
 {
     float bestChildUCB1 = -1.0f;
-    MonteCarloNode *bestChild = nullptr;
+    int bestChildIdx = -1;
     for (int i = 0; i < childNodes.size(); i++)
     {
         float thisChildUCB1 = childNodes[i].UCB1(nodeIterations, true);
+        if (thisChildUCB1 == FLT_MAX)
+            return &childNodes[i];
+        
         if (thisChildUCB1 > bestChildUCB1)
         {
-            *populateMove = possibleMoves[i];
-            bestChild = &childNodes[i];
+            bestChildIdx = i;   
             bestChildUCB1 = thisChildUCB1;
-            if (thisChildUCB1 == FLT_MAX)
-                return bestChild;
         }
     }
-    return bestChild;
+    *populateMove = possibleMoves[bestChildIdx];
+    return &childNodes[bestChildIdx];
 }
 
 unsigned int MonteCarloNode::nodeVisits() const
@@ -129,7 +128,7 @@ MonteCarloNode MonteCarloNode::getNodeForMove(const Move &move)
     return MonteCarloNode();
 }
 
-void MonteCarloNode::expand(Board& board)
+void MonteCarloNode::expand(const Board& board)
 {
     possibleMoves = board.findPossibleMoves();
     childNodes.resize(possibleMoves.size());
@@ -137,7 +136,8 @@ void MonteCarloNode::expand(Board& board)
 
 float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
 {
-    if (possibleMoves.size() == 0)
+    std::vector<Move> nextMoves = board.findPossibleMoves();
+    if (nextMoves.size() == 0)
     {
         conclusiveResult = true;
         return board.isCheck() ? 0.0f : 0.5f;
@@ -145,7 +145,6 @@ float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
 
     unsigned int movesLeft = maxMoveCount;
     Color nodeColor = board.getCurrentPlayer();
-    std::vector<Move> nextMoves = possibleMoves;
     while (movesLeft-- > 0u)
     {
         if (nextMoves.size() == 0)

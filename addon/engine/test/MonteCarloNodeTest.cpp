@@ -19,7 +19,7 @@ TEST(MonteCarloNodeTest, FirstIteration)
     MonteCarloNode root;
     Board freshBoard;
 
-    root.runIteration(freshBoard, 0u);
+    root.runIteration(freshBoard);
     Move bestMove = root.highestWinrateMove();
     EXPECT_EQ(root.nodeVisits(), 1u);
     MonteCarloNode nextNode = root.getNodeForMove(bestMove);
