@@ -162,6 +162,7 @@ float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
         }
         int moveIdx = Random::Range(0, (int)nextMoves.size() - 1);
         board.applyMove(nextMoves[moveIdx]);
+        nextMoves = board.findPossibleMoves();
     }
     
     float boardEval = BoardEvaluator::evaluateBoard(board);
