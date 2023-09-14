@@ -69,20 +69,22 @@ MonteCarloNode *MonteCarloNode::highestUCB1Child(Move *populateMove)
         return nullptr;
 
     float bestChildUCB1 = -1.0f;
-    int bestChildIdx = -1;
+    std::vector<int> bestChildIndices;
     for (int i = 0; i < childNodes.size(); i++)
     {
         float thisChildUCB1 = childNodes[i].UCB1(nodeIterations, true);
         if (thisChildUCB1 > bestChildUCB1)
         {
-            bestChildIdx = i;   
+            bestChildIndices.clear();
+            bestChildIndices.push_back(i);   
             bestChildUCB1 = thisChildUCB1;
         }
-        if (thisChildUCB1 == FLT_MAX)
+        else if (thisChildUCB1 == bestChildUCB1)
         {
-            break;
+            bestChildIndices.push_back(i);
         }
     }
+    const int bestChildIdx = bestChildIndices[Random::Range(0, (int)bestChildIndices.size() - 1)];
     *populateMove = possibleMoves[bestChildIdx];
     return &childNodes[bestChildIdx];
 }
