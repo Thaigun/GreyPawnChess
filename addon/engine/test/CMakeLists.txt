@@ -34,6 +34,7 @@ add_executable(
     MonteCarloNodeTest.cpp
     MoveTest.cpp
     PieceTest.cpp
+    ZobristHashTest.cpp
     # Engine files
     ../src/Board.cpp
     ../src/BoardEvaluator.cpp
@@ -46,6 +47,7 @@ add_executable(
     ../src/Random.cpp
     ../src/StringUtil.cpp
     ../src/TimeManagement.cpp
+    ../src/ZobristHash.cpp
 )
 target_link_libraries(
     EngineTest

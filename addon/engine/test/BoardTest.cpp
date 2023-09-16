@@ -33,79 +33,6 @@ unsigned int countPossibleMoves(const Board& board, unsigned int depth, bool div
 	return foundMoves;
 }
 
-// https://www.chessprogramming.org/Perft_Results
-TEST(BoardTest, LegalMoves1) 
-{
-	const Board board = Board::buildFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-	unsigned int expectedMoveCounts[6] = {
-		1u, 20u, 400u, 8902u, 197281u, 4865609u
-	};
-	int depth = 5;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
-TEST(BoardTest, LegalMoves2) 
-{
-	const Board board = Board::buildFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
-	unsigned int expectedMoveCounts[5] = {
-		1u, 48u, 2039u, 97862u, 4085603u
-	};
-	int depth = 3;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
-TEST(BoardTest, LegalMoves3) 
-{
-	const Board board = Board::buildFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
-	unsigned int expectedMoveCounts[7] = {
-		1u, 14u, 191u, 2812u, 43238u, 674624u, 11030083u
-	};
-	int depth = 5;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
-TEST(BoardTest, LegalMoves4) 
-{
-	const Board board = Board::buildFromFEN("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
-	unsigned int expectedMoveCounts[6] = {
-		1u, 6u, 264u, 9467u, 422333u, 15833292u
-	};
-	int depth = 4;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
-TEST(BoardTest, LegalMoves5) 
-{
-	const Board board = Board::buildFromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
-	unsigned int expectedMoveCounts[6] = {
-		1u, 44u, 1486u, 62379u, 2103487u, 89941194u
-	};
-	int depth = 4;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
-TEST(BoardTest, LegalMoves6) 
-{
-	const Board board = Board::buildFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-	unsigned int expectedMoveCounts[6] = {
-		1u, 46u, 2079u, 89890u, 3894594u, 164075551u
-	};
-	int depth = 4;
-	unsigned int foundMoves = countPossibleMoves(board, depth);
-	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
-	PROFILER_RESET();
-}
-
 TEST(BoardTest, InsufficientMaterial)
 {
 	// Rooks make the material sufficient
@@ -151,13 +78,6 @@ TEST(BoardTest, InsufficientMaterial)
 	EXPECT_FALSE(board.insufficientMaterial());
 	board = Board::buildFromFEN("8/8/1K2b3/6n1/8/4k3/8/8 w - - 0 1");
 	EXPECT_FALSE(board.insufficientMaterial());
-}
-
-TEST(BoardTest, HashTest0)
-{
-	Board board1;
-	Board board2;
-	ASSERT_EQ(board1.getHash(), board2.getHash());
 }
 
 TEST(BoardTest, HashTest1) 
@@ -253,16 +173,21 @@ TEST(BoardTest, HashTest6)
 
 TEST(BoardTest, HashTest7)
 {
-	// En passant square should change the hash
+	// En passant square should change the hash if there is a piece to take it
 	Board board;
-	board.applyMove(board.constructMove("d2d4"));
-	board.applyMove(board.constructMove("d7d5"));
+	board.applyMove("d2d4");
+	board.applyMove("d7d6");
+	board.applyMove("d4d5");
+	board.applyMove("e7e5");
 	unsigned int enPassantHash = board.getHash();
 	Board board2;
-	board2.applyMove(board2.constructMove("d2d3"));
-	board2.applyMove(board2.constructMove("d7d6"));
-	board2.applyMove(board2.constructMove("d3d4"));
-	board2.applyMove(board2.constructMove("d6d5"));
+	// 1. d3 d6 2. d4 e6 3. d5 e5
+	board2.applyMove("d2d3");
+	board2.applyMove("d7d6");
+	board2.applyMove("d3d4");
+	board2.applyMove("e7e6");
+	board2.applyMove("d4d5");
+	board2.applyMove("e6e5");
 	unsigned int noEnPassantHash = board2.getHash();
 	ASSERT_NE(enPassantHash, noEnPassantHash);
 }
@@ -311,6 +236,21 @@ TEST(BoardTest, HashTest10)
 	ASSERT_EQ(hash1, hash2);
 }
 
+TEST(BoardTest, HashTest11)
+{
+	// Moving forward and back after initial pawn moves should end up in same hash.
+	Board board;
+	board.applyMove("e2e4");
+	board.applyMove("e7e5");
+	unsigned int hash1 = board.getHash();
+	board.applyMove("b1c3");
+	board.applyMove("b8c6");
+	board.applyMove("c3b1");
+	board.applyMove("c6b8");
+	unsigned int hash2 = board.getHash();
+	ASSERT_EQ(hash1, hash2);
+}
+
 TEST(BoardTest, SpecificMoves1)
 {
 	// Test en passant take
@@ -331,4 +271,133 @@ TEST(BoardTest, SpecificMoves2)
 	}
 	const std::vector<Move> moves = board.findPossibleMoves();
 	ASSERT_EQ(moves.size(), 1);
+}
+
+TEST(BoardTest, DetectRepetitionFromStart)
+{
+	Board board;
+	for (int i = 0; i < 2; i++)
+	{
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("b1c3");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("b8c6");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("c3b1");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("c6b8");
+	}
+	ASSERT_TRUE(board.threefoldRepetition());
+}
+
+TEST(BoardTest, DetectRepetitionMidGame)
+{
+	Board board;
+	board.applyMove("e2e4");
+	board.applyMove("e7e5");
+	for (int i = 0; i < 2; i++)
+	{
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("b1c3");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("b8c6");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("c3b1");
+		ASSERT_FALSE(board.threefoldRepetition());
+		board.applyMove("c6b8");
+	}
+	ASSERT_TRUE(board.threefoldRepetition());
+}
+
+TEST(BoardTest, RepetitiveButDifferentPlayer)
+{
+
+}
+
+TEST(BoardTest, RepetitiveButDiffCastlingRights)
+{
+
+}
+
+TEST(BoardTest, RepetitiveButDifferentEnPassant)
+{
+
+}
+
+TEST(BoardTest, DetectRepetitionAfterFENInit)
+{
+
+}
+
+// https://www.chessprogramming.org/Perft_Results
+TEST(BoardTest, LegalMoves1) 
+{
+	const Board board = Board::buildFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	unsigned int expectedMoveCounts[6] = {
+		1u, 20u, 400u, 8902u, 197281u, 4865609u
+	};
+	int depth = 5;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
+}
+
+TEST(BoardTest, LegalMoves2) 
+{
+	const Board board = Board::buildFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
+	unsigned int expectedMoveCounts[5] = {
+		1u, 48u, 2039u, 97862u, 4085603u
+	};
+	int depth = 3;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
+}
+
+TEST(BoardTest, LegalMoves3) 
+{
+	const Board board = Board::buildFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
+	unsigned int expectedMoveCounts[7] = {
+		1u, 14u, 191u, 2812u, 43238u, 674624u, 11030083u
+	};
+	int depth = 5;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
+}
+
+TEST(BoardTest, LegalMoves4) 
+{
+	const Board board = Board::buildFromFEN("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+	unsigned int expectedMoveCounts[6] = {
+		1u, 6u, 264u, 9467u, 422333u, 15833292u
+	};
+	int depth = 4;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
+}
+
+TEST(BoardTest, LegalMoves5) 
+{
+	const Board board = Board::buildFromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+	unsigned int expectedMoveCounts[6] = {
+		1u, 44u, 1486u, 62379u, 2103487u, 89941194u
+	};
+	int depth = 4;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
+}
+
+TEST(BoardTest, LegalMoves6) 
+{
+	const Board board = Board::buildFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+	unsigned int expectedMoveCounts[6] = {
+		1u, 46u, 2079u, 89890u, 3894594u, 164075551u
+	};
+	int depth = 4;
+	unsigned int foundMoves = countPossibleMoves(board, depth);
+	ASSERT_EQ(foundMoves, expectedMoveCounts[depth]);
+	PROFILER_RESET();
 }

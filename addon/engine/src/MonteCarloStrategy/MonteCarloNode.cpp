@@ -3,109 +3,51 @@
 #include <assert.h>
 #include <cmath>
 #include <limits>
+#include <iostream>
 #include <vector>
 
 #include "../Board.h"
 #include "../BoardEvaluator.h"
 #include "../Random.h"
 
-float MonteCarloNode::runIteration(const Board& board, unsigned int totalSimCount, unsigned int maxMoveCount)
+void MonteCarloNode::runIteration(const Board &board, unsigned int maxMoveCount)
 {
     Board iterationBoard = board;
-    return runIterationOnBoard(iterationBoard, totalSimCount, maxMoveCount, true);
+    runIterationOnBoard(iterationBoard, maxMoveCount, true);
 }
 
-float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int totalSimCount, unsigned int maxMoveCount, bool isRoot)
+float MonteCarloNode::runIterationOnBoard(Board& board, unsigned int maxMoveCount, bool isRoot)
 {
-    Color nodePlayerColor = board.getCurrentPlayer();
-    if (!isLeaf())
+    nodeIterations++;
+    float playoutResult;
+    if (conclusiveResult)
     {
-        nodeIterations++;
-        Move bestMove;
-        MonteCarloNode* bestChild = highestUCB1Child(totalSimCount, &bestMove);
-        board.applyMove(bestMove);
-        float simulationPoints = bestChild->runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
-        points += 1 - simulationPoints;
-        return simulationPoints;
+        playoutResult = points / nodeIterations;
     }
-
-    // Is leaf
-    // If the node is already end of game, return immediately.
-    std::vector<Move> initialMoves = board.findPossibleMoves();
-    if (initialMoves.size() == 0)
+    else if (nodeIterations == 1u && !isRoot)
     {
-        nodeIterations++;
-        return board.isCheck() ? 0.0f : 1.0f;
+        playoutResult = randomPlayout(board, maxMoveCount);
     }
-
-    // Node has not been simulated yet. If this is a root node, skip simulation.
-    if (nodeIterations++ == 0u && !isRoot)
+    else
     {
-        unsigned int movesLeft = maxMoveCount;
-        Color simulationWinner = Color::NONE;
-        bool reachedEnd = false;
-        
-        while (movesLeft-- > 0u)
-        {
-            std::vector<Move> nextMoves = board.findPossibleMoves();
-            if (nextMoves.size() == 0)
-            {
-                reachedEnd = true;
-                if (board.isCheck())
-                {
-                    // Checkmate
-                    simulationWinner = board.getCurrentPlayer() == Color::BLACK ? Color::WHITE : Color::BLACK;
-                    break;
-                }
-                // Stalemate
-                simulationWinner = Color::NONE;
-                break;
-            }
-            if (board.insufficientMaterial())
-            {
-                reachedEnd = true;
-                // Insufficient material
-                simulationWinner = Color::NONE;
-                break;
-            }
-            int moveIdx = Random::Range(0, (int)nextMoves.size() - 1);
-            board.applyMove(nextMoves[moveIdx]);
-        }
-
-        if (!reachedEnd)
-        {
-            float boardEval = BoardEvaluator::evaluateBoard(board);
-            float whiteWinProb = (boardEval / (1 + std::abs(boardEval))) * 0.5f + 0.5f;
-            float winProb = nodePlayerColor == Color::WHITE ? whiteWinProb : 1.0f - whiteWinProb;
-            points += winProb;
-            return winProb;
-        }
-        if (nodePlayerColor == simulationWinner)
-        {
-            points += 1.0f;
-            return 1.0f;
-        }   
-        if (simulationWinner == Color::NONE)
-        {
-            points += 0.5f;
-            return 0.5f;
-        }
-        return 0.0f;
+        if (childNodes.size() == 0u)
+            expand(board);
+        playoutResult = runOnBestChild(board, maxMoveCount);
     }
-
-    // Expand the node if it has been simulated and did not have children yet.
-    possibleMoves = std::move(initialMoves);
-    childNodes.resize(possibleMoves.size());
-    board.applyMove(possibleMoves[0]);
-    return childNodes[0].runIterationOnBoard(board, totalSimCount, maxMoveCount, false);
+    points += playoutResult;
+    return playoutResult;
 }
 
-bool MonteCarloNode::isLeaf()
+float MonteCarloNode::runOnBestChild(Board& board, unsigned int maxMoveCount)
 {
-    return !childNodes.size();
+    Move bestMove;
+    MonteCarloNode* bestChild = highestUCB1Child(&bestMove);
+    board.applyMove(bestMove);
+    float childResult = bestChild->runIterationOnBoard(board, maxMoveCount);
+    return 1.0f - childResult;
 }
 
-float MonteCarloNode::UCB1(unsigned int totalVisits)
+float MonteCarloNode::UCB1(unsigned int totalVisits, bool inversePoints)
 {
     if (!nodeIterations)
     {
@@ -113,27 +55,38 @@ float MonteCarloNode::UCB1(unsigned int totalVisits)
     }
 
     float exploitationFactor = points / nodeIterations;
+    if (inversePoints)
+    {
+        exploitationFactor = 1.0f - exploitationFactor;
+    }
     float explorationFactor = 2 * float(std::sqrt(std::log(totalVisits) / nodeIterations));
     return exploitationFactor + explorationFactor;
 }
 
-MonteCarloNode* MonteCarloNode::highestUCB1Child(unsigned int totalVisits, Move* populateMove)
+MonteCarloNode *MonteCarloNode::highestUCB1Child(Move *populateMove)
 {
+    if (childNodes.size() == 0u)
+        return nullptr;
+
     float bestChildUCB1 = -1.0f;
-    MonteCarloNode* bestChild = nullptr;
+    std::vector<int> bestChildIndices;
     for (int i = 0; i < childNodes.size(); i++)
     {
-        float thisChildUCB1 = childNodes[i].UCB1(totalVisits);
+        float thisChildUCB1 = childNodes[i].UCB1(nodeIterations, true);
         if (thisChildUCB1 > bestChildUCB1)
         {
-            *populateMove = possibleMoves[i];
-            bestChild = &childNodes[i];
+            bestChildIndices.clear();
+            bestChildIndices.push_back(i);   
             bestChildUCB1 = thisChildUCB1;
-            if (thisChildUCB1 == FLT_MAX)
-                return bestChild;
+        }
+        else if (thisChildUCB1 == bestChildUCB1)
+        {
+            bestChildIndices.push_back(i);
         }
     }
-    return bestChild;
+    const int bestChildIdx = bestChildIndices[Random::Range(0, (int)bestChildIndices.size() - 1)];
+    *populateMove = possibleMoves[bestChildIdx];
+    return &childNodes[bestChildIdx];
 }
 
 unsigned int MonteCarloNode::nodeVisits() const
@@ -150,7 +103,7 @@ Move MonteCarloNode::highestWinrateMove() const
         if (childNodes[i].nodeIterations == 0u)
             continue;
 
-        float childWinrate = childNodes[i].points / childNodes[i].nodeIterations;
+        float childWinrate = 1.0f - (childNodes[i].points / childNodes[i].nodeIterations);
         if (childWinrate > bestWinRate)
         {
             bestWinRate = childWinrate;
@@ -161,10 +114,10 @@ Move MonteCarloNode::highestWinrateMove() const
     return bestMove;
 }
 
-MonteCarloNode MonteCarloNode::getNodeForMove(const Move& move)
+MonteCarloNode MonteCarloNode::getNodeForMove(const Move &move)
 {
     // If this node has not been expanded yet, just return a new node.
-    if (isLeaf())
+    if (childNodes.size() == 0u)
     {
         return MonteCarloNode();
     }
@@ -179,4 +132,54 @@ MonteCarloNode MonteCarloNode::getNodeForMove(const Move& move)
 
     // If, for some reason matching node is not found, return a new, empty node.
     return MonteCarloNode();
+}
+
+void MonteCarloNode::expand(const Board& board)
+{
+    possibleMoves = board.findPossibleMoves();
+    childNodes.resize(possibleMoves.size());
+}
+
+float MonteCarloNode::randomPlayout(Board &board, unsigned int maxMoveCount)
+{
+    std::vector<Move> nextMoves = board.findPossibleMoves();
+    if (nextMoves.size() == 0)
+    {
+        conclusiveResult = true;
+        return board.isCheck() ? 0.0f : 0.5f;
+    }
+
+    unsigned int movesLeft = maxMoveCount;
+    Color nodeColor = board.getCurrentPlayer();
+    while (movesLeft-- > 0u)
+    {
+        if (nextMoves.size() == 0)
+        {
+            if (board.isCheck())
+            {
+                return board.getCurrentPlayer() == nodeColor ? 0.0f : 1.0f;
+            }
+            return 0.5f;
+        }
+        if (board.insufficientMaterial() || board.noProgress() || board.threefoldRepetition())
+        {
+            return 0.5f;
+        }
+        int moveIdx = Random::Range(0, (int)nextMoves.size() - 1);
+        board.applyMove(nextMoves[moveIdx]);
+        nextMoves = board.findPossibleMoves();
+    }
+    
+    float boardEval = BoardEvaluator::evaluateBoard(board);
+    float whiteWinProb = (boardEval / (1 + std::abs(boardEval))) * 0.2f + 0.5f;
+    float winProb = nodeColor == Color::WHITE ? whiteWinProb : 1.0f - whiteWinProb;
+    return winProb;
+}
+
+void MonteCarloNode::printStats() const
+{
+    std::cout << "Node iterations: " << nodeIterations << std::endl;
+    std::cout << "Possible moves: " << possibleMoves.size() << std::endl;
+    std::cout << "Child nodes: " << childNodes.size() << std::endl;
+    std::cout << "Points: " << points << std::endl;
 }

@@ -20,6 +20,15 @@
 class MainProfiler
 {
 public:
+    static MainProfiler& getInstance()
+    {
+        static MainProfiler instance;
+        return instance;
+    }
+
+    MainProfiler(const MainProfiler&) = delete;
+    MainProfiler& operator=(MainProfiler const&) = delete;
+
     void addEntry(const std::string& name, const std::chrono::high_resolution_clock::duration& dur)
     {
         callCounts[name]++;
@@ -43,22 +52,13 @@ public:
         blockDurations.clear();
         profilerStartTime = std::chrono::high_resolution_clock::now();
     }
+
 private:
+    MainProfiler() : profilerStartTime(std::chrono::high_resolution_clock::now()) {}
+    
     std::unordered_map<std::string, unsigned int> callCounts;
     std::unordered_map<std::string, std::chrono::high_resolution_clock::duration> blockDurations;
     std::chrono::high_resolution_clock::time_point profilerStartTime;
-
-// Singleton implementation
-public:
-    static MainProfiler& getInstance()
-    {
-        static MainProfiler instance;
-        return instance;
-    }
-    MainProfiler(const MainProfiler&) = delete;
-    MainProfiler& operator=(MainProfiler const&) = delete;
-private:
-    MainProfiler() : profilerStartTime(std::chrono::high_resolution_clock::now()) {}
 };
 
 class ScopedProfiler

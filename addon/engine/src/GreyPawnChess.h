@@ -26,6 +26,8 @@ public:
     // The engine is free to decide when it should make a move. 
     // Give it a callback function it should call when it wants to make the move.
     void setMoveCallback(std::function<void(const std::string&)> cb);
+    // A callback the engine calls to indicate the game is ended.
+    void setGameEndReasonCallback(std::function<void(const std::string&)> cb);
 
 protected:
     // To be oberriden by specific strategy implementations
@@ -44,6 +46,8 @@ protected:
 
     // Members used to manage the worker thread and by the worker thread.
     std::function<void(std::string)> moveCallback;
+    bool gameEndCallbackSet = false;
+    std::function<void(std::string)> gameEndReasonCallback;
     std::thread workThread;
     std::mutex mtx;
     std::atomic<bool> running = false;

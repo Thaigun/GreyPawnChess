@@ -34,12 +34,23 @@ void GreyPawnChess::startGame()
                 MTX_LOCK
                 while (moves.size() < gameState.moves.size())
                 {
+                    PROFILER_RESET();
                     const std::string newMove = gameState.moves[moves.size()];
                     Move move = board.constructMove(newMove);
                     applyMove(move);
                     std::vector<Move> possibleMoves = board.findPossibleMoves();
                     if (possibleMoves.size() == 0)
+                    {
+                        if (gameEndCallbackSet)
+                            board.isCheck() ? gameEndReasonCallback("lose") : gameEndReasonCallback("draw");
                         return;
+                    }
+                    if (board.threefoldRepetition() || board.insufficientMaterial() || board.noProgress())
+                    {
+                        if (gameEndCallbackSet)
+                            gameEndReasonCallback("draw");
+                        return;
+                    }
                 }
             }
 
@@ -72,6 +83,15 @@ void GreyPawnChess::startGame()
                 if (possibleMoves.size() == 0)
                 {
                     MTX_LOCK
+                    if (gameEndCallbackSet)
+                        board.isCheck() ? gameEndReasonCallback("checkmate") : gameEndReasonCallback("draw");
+                    running = false;
+                }
+                if (board.threefoldRepetition() || board.insufficientMaterial() || board.noProgress())
+                {
+                    MTX_LOCK
+                    if (gameEndCallbackSet)
+                        gameEndReasonCallback("draw");
                     running = false;
                 }
             }
@@ -119,6 +139,13 @@ void GreyPawnChess::setMoveCallback(std::function<void(const std::string&)> cb)
 {
     MTX_LOCK
     moveCallback = cb;
+}
+
+void GreyPawnChess::setGameEndReasonCallback(std::function<void(const std::string&)> cb)
+{
+    MTX_LOCK
+    gameEndCallbackSet = true;
+    gameEndReasonCallback = cb;
 }
 
 Duration GreyPawnChess::timeSinceStateSet() 

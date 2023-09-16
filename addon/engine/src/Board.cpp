@@ -5,6 +5,7 @@
 #include <climits>
 #include <iterator>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 
 #include "BoardFuncs.h"
@@ -45,7 +46,9 @@ Board::Board()
         pieces[square] = Piece::NONE;
     }
 
-    initHash();
+    hash.initHash(pieces, playerInTurn, whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen, enPassant);
+
+    updateRepetitionHistory();
 }
 
 Board Board::buildFromFEN(const std::string& fenString)
@@ -146,21 +149,121 @@ Board Board::buildFromFEN(const std::string& fenString)
     {
         newBoard.enPassant = BoardFuncs::getSquareIndex(fenParts[3]);
     }
-    newBoard.initHash();
+    newBoard.hash.initHash(
+        newBoard.pieces, 
+        newBoard.playerInTurn, 
+        newBoard.whiteCanCastleKing, 
+        newBoard.whiteCanCastleQueen, 
+        newBoard.blackCanCastleKing, 
+        newBoard.blackCanCastleQueen, 
+        newBoard.enPassant
+    );
+
+    newBoard.resetRepetitionHistory();
+    newBoard.updateRepetitionHistory();
+    
     return newBoard;
 }
 
 std::vector<Move> Board::findPossibleMoves() const
 {
-    PROFILE("Board::findPossibleMoves");
-    std::vector<Move> pseudoMoves;
-    for (char sqr = 0; sqr < (char)64; sqr++)
-    {
-        findPseudoLegalMoves(sqr, playerInTurn, pseudoMoves, false, false);
-    }
+    //PROFILE("Board::findPossibleMoves");
 
     std::vector<Move> moves;
-    for (const Move& move : pseudoMoves)
+    moves.reserve(64);
+    Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    Piece opponentPieceColor = ~currentPlayerColor & Piece::COLOR_MASK;
+    char kingSquare = findSquareWithPiece(currentPlayerColor | Piece::KING);
+    assert(kingSquare >= 0 && kingSquare < 64 && "King must be on the board.");
+
+    bool specialTreatmentSquares[64];
+    for (int i = 0; i < 63; i++)
+        specialTreatmentSquares[i] = false;
+
+    specialTreatmentSquares[kingSquare] = true;
+    char pinnedPieces[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+    MoveDirection directions[8] = {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W,
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    std::vector<char> checkingPieces = findKnightThreats(kingSquare, opponentPieceColor);
+    for (int i = 0; i < 8; i++)
+    {
+        char ownPieceSquare = -1;
+        char nextSquare = stepSquareInDirection(kingSquare, directions[i]);
+        int stepCount = 1;
+        while (nextSquare != -1)
+        {
+            Piece nextSquarePiece = pieces[nextSquare];
+            if (areSameColor(currentPlayerColor, nextSquarePiece))
+            {
+                if (ownPieceSquare != -1)
+                    break;
+                ownPieceSquare = nextSquare;
+            }
+            else if (nextSquarePiece != Piece::NONE)
+            {
+                // Check if the opponent piece in the square can move to the king's square
+                // disregarding other pieces blocking.
+                MoveDirection oppositeDir = static_cast<MoveDirection>(-char(directions[i]));
+                if (posesXrayThreat(nextSquarePiece, oppositeDir, stepCount))
+                {
+                    if (ownPieceSquare != -1)
+                    {
+                        pinnedPieces[i] = ownPieceSquare;
+                        specialTreatmentSquares[ownPieceSquare] = true;
+                    }
+                    else 
+                    {
+                        checkingPieces.push_back(nextSquare);
+                    }
+                }
+                // In case of an en passantable pawn a threat may come through two pieces horizontally, then don't break.
+                if (
+                    (nextSquarePiece & ~Piece::COLOR_MASK) != Piece::PAWN || 
+                    enPassant % 8 != nextSquare % 8
+                )
+                {
+                    break;
+                }
+            }
+            nextSquare = stepSquareInDirection(nextSquare, directions[i]);
+            stepCount++;
+        }
+    }
+
+    if (checkingPieces.size() > 1)
+    {
+        // King is in double check, only king moves are legal.
+        std::vector<Move> candidateKingMoves;
+        candidateKingMoves.reserve(8);
+        findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, false);
+        Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE; 
+        for (const Move& move : candidateKingMoves)
+        {
+            if (!isThreatened(move.to[0], opponentColor))
+            {
+                moves.push_back(move);
+            }
+        }
+        return moves;
+    }
+    
+    std::vector<Move> candidateMoves;
+    const bool isCheck = checkingPieces.size() > 0;
+    for (char square = 0; square < 64; square++)
+    {
+        const bool isSpecialSquare = specialTreatmentSquares[square];
+        findPseudoLegalMoves(square, playerInTurn, (isSpecialSquare || isCheck) ? candidateMoves : moves, false, false);
+    }
+
+    for (const Move& move : candidateMoves)
     {
         if (checkMoveLegality(move))
         {
@@ -169,6 +272,123 @@ std::vector<Move> Board::findPossibleMoves() const
     }
 
     return moves;
+}
+
+void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirection, std::vector<Move>& moves) const
+{
+    // Pinned piece can only move in the pin direction.
+    Piece pinnedPiece = pieces[pinnedPieceSquare];
+    Piece pinnedPieceType = pinnedPiece & ~Piece::COLOR_MASK;
+    MoveDirection oppositeDir = static_cast<MoveDirection>(-char(pinDirection));
+    const bool isDiagonal = pinDirection == MoveDirection::NE || pinDirection == MoveDirection::SE || pinDirection == MoveDirection::SW || pinDirection == MoveDirection::NW;
+    switch (pinnedPieceType)
+    {
+        case Piece::PAWN:
+            if (isDiagonal)
+            {
+                // Pinned pawn can only move diagonally to take the piece pinning it.
+                char takePieceSquare = stepSquareInDirection(pinnedPieceSquare, pinDirection);
+                if (pieces[takePieceSquare] != Piece::NONE)
+                {
+                    moves.push_back(Move(pinnedPieceSquare, takePieceSquare));
+                }
+            }
+            else if (pinDirection == MoveDirection::N || pinDirection == MoveDirection::S)
+            {
+                // Pinned pawn can only move forward one step.
+                MoveDirection forward = playerInTurn == Color::WHITE ? MoveDirection::N : MoveDirection::S;
+                char nextSquare = stepSquareInDirection(pinnedPieceSquare, forward);
+                if (pieces[nextSquare] == Piece::NONE)
+                {
+                    moves.push_back(Move(pinnedPieceSquare, nextSquare));
+                    if (pinnedPieceSquare % 8 == 1 || pinnedPieceSquare % 8 == 6)
+                    {
+                        // Double step for a pawn?
+                        char nextnextSquare = stepSquareInDirection(nextSquare, forward);
+                        if (pieces[nextnextSquare] == Piece::NONE)
+                            moves.push_back(Move(pinnedPieceSquare, nextnextSquare));
+                    }
+                }
+            }
+            return;
+        case Piece::ROOK:
+            if (!isDiagonal)
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
+            return;
+        case Piece::QUEEN:
+            findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
+            return;
+        case Piece::BISHOP:
+            if (isDiagonal)
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
+            return;
+        default:
+            return;
+    }
+}
+
+Piece Board::findPieceInDirection(char square, MoveDirection direction, char* pieceSquare) const
+{
+    char nextSquare = stepSquareInDirection(square, direction);
+    while (nextSquare != -1)
+    {
+        Piece nextSquarePiece = pieces[nextSquare];
+        if (nextSquarePiece != Piece::NONE)
+        {
+            *pieceSquare = nextSquare;
+            return nextSquarePiece;
+        }
+        nextSquare = stepSquareInDirection(nextSquare, direction);
+    }
+    *pieceSquare = -1;
+    return Piece::NONE;
+} 
+
+std::vector<char> Board::findKnightThreats(char square, Piece byColor) const
+{
+    char file = square % 8;
+    char rank = square / 8;
+    char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
+    char fileOffsets[8] = { -2,-1,1,2, 2, 1,-1,-2 };
+    std::vector<char> threats;
+    for (int i = 0; i < 8; i++)
+    {
+        char moveRank = rank + rankOffsets[i];
+        char moveFile = file + fileOffsets[i];
+        if (moveRank > 7 || moveRank < 0 || moveFile < 0 || moveFile > 7)
+            continue;
+        
+        char moveSquare = 8 * moveRank + moveFile;
+        Piece targetSquarePiece = pieces[moveSquare];
+        if (targetSquarePiece == (Piece::KNIGHT | byColor))
+            threats.push_back(moveSquare);
+    }
+    return threats;
+}
+
+bool Board::posesXrayThreat(Piece piece, MoveDirection direction, int distance) const
+{
+    Piece pieceType = piece & ~Piece::COLOR_MASK;
+    Piece pieceColor = piece & Piece::COLOR_MASK;
+    switch (pieceType)
+    {
+    case Piece::PAWN:
+        if (distance > 1)
+            return false;
+        if (pieceColor == Piece::WHITE)
+            return direction == MoveDirection::NW || direction == MoveDirection::NE;
+        return direction == MoveDirection::SW || direction == MoveDirection::SE;
+    case Piece::ROOK:
+        return direction == MoveDirection::N || direction == MoveDirection::S || direction == MoveDirection::E || direction == MoveDirection::W;
+    case Piece::QUEEN:
+        return true;
+    case Piece::BISHOP:
+        return direction == MoveDirection::NE || direction == MoveDirection::SE || direction == MoveDirection::SW || direction == MoveDirection::NW;
+    case Piece::KING:
+        return distance == 1;
+    default:
+        return false;
+    }
 }
 
 char Board::findSquareWithPiece(Piece piece) const
@@ -194,6 +414,11 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
     }
 }
 
+bool Board::checkKingMoveLegality(const Move& move) const
+{
+    return checkMoveLegality(move);
+}
+
 bool Board::checkMoveLegality(const Move& move) const
 {
     PROFILE("Board::checkMoveLegality");
@@ -210,7 +435,6 @@ bool Board::checkMoveLegality(const Move& move) const
             }
         }
     }
-
     Board testBoard(*this);
     testBoard.applyMove(move);
     // Check if the current player in turn is in check if the move was applied.
@@ -417,7 +641,7 @@ void Board::findPseudoCastlingMoves(char square, Color player, std::vector<Move>
     }
 }
 
-void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& moves) const
+void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& moves, bool includeCastling) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -430,7 +654,10 @@ void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& mo
         MoveDirection::NW
     };
     findDirectionalPseudoMoves(square, directions, moves, 1);
-    findPseudoCastlingMoves(square, player, moves);
+    if (includeCastling)
+    {
+        findPseudoCastlingMoves(square, player, moves);
+    }
 }
 
 void Board::findPseudoBishopMoves(char square, std::vector<Move>& moves) const 
@@ -496,10 +723,10 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
 
 bool Board::isThreatened(char square, Color byPlayer) const
 {
-    PROFILE("Board::isThreatened");
+    // PROFILE("Board::isThreatened");
     // Threats are symmetric: if a knight in this square would threaten a knight of the other player,
     // the other knight would also threaten this square.
-    // Hence, for each piece typewe check if such piece in this square would threaten a similar piece of the other player.
+    // Hence, for each piece typee check if such piece in this square would threaten a similar piece of the other player.
     // If that's true for any piece type, then this square is threatened.
     Piece testPlayerColor = byPlayer == Color::BLACK ? Piece::WHITE : Piece::BLACK;
     Piece opponentColor = ~testPlayerColor & Piece::COLOR_MASK;
@@ -525,19 +752,8 @@ bool Board::isThreatened(char square, Color byPlayer) const
     }
 
     // Test for pawn threat
-    MoveDirection possibleThreats[2];
-    possibleThreats[0] = testPlayerColor == Piece::WHITE ? MoveDirection::NE : MoveDirection::SE;
-    possibleThreats[1] = testPlayerColor == Piece::WHITE ? MoveDirection::NW : MoveDirection::SW;
-    for (int i = 0; i < 2; i++)
-    {
-        char threatSquare = stepSquareInDirection(square, possibleThreats[i]);
-        if (threatSquare != char(-1))
-        {
-            Piece threatPiece = pieces[threatSquare];
-            if (threatPiece == (opponentColor | Piece::PAWN))
-                return true;
-        }
-    }
+    if (hasPawnThreat(square, byPlayer))
+        return true;
 
     // Test for king threat
     MoveDirection kingDirections[8] = {
@@ -610,7 +826,26 @@ bool Board::isThreatened(char square, Color byPlayer) const
     return false;
 }
 
-Move Board::constructPromotionMove(const std::string& moveUCI)
+bool Board::hasPawnThreat(char square, Color byPlayer) const
+{
+    Piece byPlayerColor = byPlayer == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    MoveDirection possibleThreats[2];
+    possibleThreats[0] = byPlayerColor == Piece::BLACK ? MoveDirection::NE : MoveDirection::SE;
+    possibleThreats[1] = byPlayerColor == Piece::BLACK ? MoveDirection::NW : MoveDirection::SW;
+    for (int i = 0; i < 2; i++)
+    {
+        char threatSquare = stepSquareInDirection(square, possibleThreats[i]);
+        if (threatSquare != char(-1))
+        {
+            Piece threatPiece = pieces[threatSquare];
+            if (threatPiece == (byPlayerColor | Piece::PAWN))
+                return true;
+        }
+    }
+    return false;
+}
+
+Move Board::constructPromotionMove(const std::string& moveUCI) const
 {
     const char* moveStr = moveUCI.c_str();
     const char firstSquareIdx = BoardFuncs::getSquareIndex(moveStr);
@@ -637,7 +872,7 @@ Move Board::constructPromotionMove(const std::string& moveUCI)
     return move;
 }
 
-Move Board::constructCastlingMove(char firstSquare, char secondSquare)
+Move Board::constructCastlingMove(char firstSquare, char secondSquare) const
 {
     char rank = playerInTurn == Color::WHITE ? 0 : 7;
     char rookFile = firstSquare > secondSquare ? queenRookFile : kingRookFile;
@@ -648,14 +883,14 @@ Move Board::constructCastlingMove(char firstSquare, char secondSquare)
     return move;
 }
 
-Move Board::constructEnPassantMove(char firstSquare, char secondSquare)
+Move Board::constructEnPassantMove(char firstSquare, char secondSquare) const
 {
     char takeSquare = secondSquare + (playerInTurn == Color::WHITE ? -8 : 8);
     Move move(firstSquare, secondSquare, takeSquare, -1);
     return move;
 }
 
-Move Board::constructMove(const std::string& moveUCI)
+Move Board::constructMove(const std::string& moveUCI) const
 {
     assert(moveUCI.size() >= 4);
 
@@ -686,17 +921,21 @@ Move Board::constructMove(const std::string& moveUCI)
     return move;
 }
 
+void Board::applyMove(const std::string& moveUCI) 
+{
+    applyMove(constructMove(moveUCI));
+}
+
 void Board::applyMove(const Move& move) 
 {
+    PROFILE("Board::applyMove");
     // Remove the old en passant file from the hash
     if (enPassant != -1)
     {
         int enPassantFile = enPassant % 8;
-        hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
+        hash.toggleEnPassant(enPassantFile);
+        enPassant = -1;
     }
-
-    // Reset, it will be set again if needed
-    enPassant = -1;
 
     // In 960, the king might be moving where the rook is at the moment. For this reason,
     // we store both pieces before moving anything, to not lose the piece data.
@@ -720,7 +959,7 @@ void Board::applyMove(const Move& move)
         Piece movePiece = movePieces[i];
 
         // Update the Zobrist hash, remove the piece from the old square
-        hash ^= getZobristHashTable()[from * 12 + zobristPieceKey(movePiece)];
+        hash.togglePiece(from, movePiece);
 
         // Prepare potential promotion
         if (move.promotion != Piece::NONE)
@@ -732,14 +971,20 @@ void Board::applyMove(const Move& move)
         // Update en passant square
         if (!!(movePiece & Piece::PAWN))
         {
+            // A pawn move clears the repetition history because they can never go back.
+            resetRepetitionHistory();
             // Moved two ranks to either direction?
             if (std::abs(from - to) == (char)16)
             {
                 // En passant square is between from and to.
-                enPassant = (from + to) / 2;
-                // Add the new en passant file to the hash
-                int enPassantFile = enPassant % 8;
-                hash ^= getZobristHashTable()[12 * 64 + 1 + 4 + enPassantFile];
+                char enPassantCandidate = (from + to) / 2;
+                if (hasPawnThreat(enPassantCandidate, playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE))
+                {
+                    // Add the new en passant file to the hash
+                    enPassant = enPassantCandidate;
+                    int enPassantFile = enPassantCandidate % 8;
+                    hash.toggleEnPassant(enPassantFile);
+                }
             }
         }
         pieces[from] = Piece::NONE;
@@ -749,12 +994,14 @@ void Board::applyMove(const Move& move)
             Piece targetPiece = pieces[to];
             if (targetPiece != Piece::NONE)
             {
-                hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(targetPiece)];
+                // A capture is also irrevertible and clears the repetition history.
+                resetRepetitionHistory();
+                hash.togglePiece(to, targetPiece);
             }
 
             pieces[to] = movePiece;
             // Update the Zobrist hash, add the piece to the new square
-            hash ^= getZobristHashTable()[to * 12 + zobristPieceKey(movePiece)];
+            hash.togglePiece(to, movePiece);
         }
     }
 
@@ -781,17 +1028,26 @@ void Board::applyMove(const Move& move)
     bool newCastlingRights[4] = { whiteCanCastleKing, whiteCanCastleQueen, blackCanCastleKing, blackCanCastleQueen };
 
     // Update the hash with the new castling rights
-    for (int i = 0; i < 4; i++)
+    if (oldCastlingRights[0] != newCastlingRights[0])
     {
-        if (oldCastlingRights[i] != newCastlingRights[i])
-        {
-            hash ^= getZobristHashTable()[12 * 64 + 1 + i];
-        }
+        hash.toggleCastlingRights(Color::WHITE, 'k');
+    }
+    if (oldCastlingRights[1] != newCastlingRights[1])
+    {
+        hash.toggleCastlingRights(Color::WHITE, 'q');
+    }
+    if (oldCastlingRights[2] != newCastlingRights[2])
+    {
+        hash.toggleCastlingRights(Color::BLACK, 'k');
+    }
+    if (oldCastlingRights[3] != newCastlingRights[3])
+    {
+        hash.toggleCastlingRights(Color::BLACK, 'q');
     }
 
-    // Update whose turn it is
     playerInTurn = playerInTurn == Color::BLACK ? Color::WHITE : Color::BLACK;
-    hash ^= getZobristHashTable()[12 * 64];
+    hash.togglePlayerInTurn();
+    updateRepetitionHistory();
 }
 
 void Board::updateCastlingRights()
@@ -876,6 +1132,15 @@ Color Board::getCurrentPlayer() const
     return playerInTurn;
 }
 
+unsigned char Board::turnsSincePawnMoveOrCapture() const
+{
+    if (whitePositionsSize == 0u && blackPositionsSize == 0u)
+    {
+        return 0u;
+    }
+    return std::max(whitePositionsSize, blackPositionsSize) - 1;
+}
+
 bool Board::isCheck() const
 {
     Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
@@ -938,109 +1203,52 @@ bool Board::insufficientMaterial() const
     return true;
 }
 
-unsigned int Board::getHash()
+bool Board::noProgress() const 
 {
-    return hash;
+    return turnsSincePawnMoveOrCapture() >= 50u;
 }
 
-void Board::initHash()
+bool Board::threefoldRepetition() const 
 {
-    hash = 0u;
-    for (int i = 0; i < 64; i++)
-    {
-        if (pieces[i] != Piece::NONE)
-        {
-            int pieceIdx = zobristPieceKey(pieces[i]);
-            hash ^= getZobristHashTable()[i * 12 + pieceIdx];
-        }
-    }
+    return highestRepetitionCount >= 3u;
+}   
+
+void Board::updateRepetitionHistory()
+{
+    unsigned char repeatCount = 1u;
     if (playerInTurn == Color::WHITE)
     {
-        hash ^= getZobristHashTable()[64 * 12];
-    }
-    if (whiteCanCastleKing)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 1];
-    }
-    if (whiteCanCastleQueen)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 2];
-    }
-    if (blackCanCastleKing)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 3];
-    }
-    if (blackCanCastleQueen)
-    {
-        hash ^= getZobristHashTable()[64 * 12 + 4];
-    }
-    if (enPassant != -1)
-    {
-        int enPassantFile = enPassant % 8;
-        hash ^= getZobristHashTable()[64 * 12 + 5 + enPassantFile];
-    }
-}
-
-int Board::zobristPieceKey(Piece piece) 
-{
-    switch (uint16_t(piece))
-    {
-    case (uint16_t(Piece::PAWN | Piece::WHITE)):
-        return 0;
-        break;
-    case (uint16_t(Piece::KNIGHT | Piece::WHITE)):
-        return 1;
-        break;
-    case (uint16_t(Piece::BISHOP | Piece::WHITE)):
-        return 2;
-        break;
-    case (uint16_t(Piece::ROOK | Piece::WHITE)):
-        return 3;
-        break;
-    case (uint16_t(Piece::QUEEN | Piece::WHITE)):
-        return 4;
-        break;
-    case (uint16_t(Piece::KING | Piece::WHITE)):
-        return 5;
-        break;
-    case (uint16_t(Piece::PAWN | Piece::BLACK)):
-        return 6;
-        break;
-    case (uint16_t(Piece::KNIGHT | Piece::BLACK)):
-        return 7;
-        break;
-    case (uint16_t(Piece::BISHOP | Piece::BLACK)):
-        return 8;
-        break;
-    case (uint16_t(Piece::ROOK | Piece::BLACK)):
-        return 9;
-        break;
-    case (uint16_t(Piece::QUEEN | Piece::BLACK)):
-        return 10;
-        break;
-    case (uint16_t(Piece::KING | Piece::BLACK)):
-        return 11;
-        break;
-
-    default:
-        return 0;
-        break;
-    }
-}
-
-unsigned int* Board::getZobristHashTable()
-{
-    static unsigned int zobristHashTable[64 * 12 + 1 + 4 + 8];
-    static bool initialized = false;
-    if (!initialized)
-    {
-        // If the hash is not yet calculated, calculate it.
-        constexpr int nNumbers = 64 * 12 + 1 + 4 + 8;
-        for (int i = 0; i < nNumbers; i++)
+        for (int i = 0; i < whitePositionsSize; i++)
         {
-            zobristHashTable[i] = Random::Range(0u, UINT_MAX);
+            if (repeatablePositionsWhite[i] == hash.getHash())
+            {
+                repeatCount++;
+            }
         }
-        initialized = true;
+        repeatablePositionsWhite[whitePositionsSize++] = hash.getHash();
     }
-    return zobristHashTable;
+    else 
+    {
+        for (int i = 0; i < blackPositionsSize; i++)
+        {
+            if (repeatablePositionsBlack[i] == hash.getHash())
+            {
+                repeatCount++;
+            }
+        }
+        repeatablePositionsBlack[blackPositionsSize++] = hash.getHash();
+    }
+    highestRepetitionCount = std::max(highestRepetitionCount, repeatCount);
+}
+
+void Board::resetRepetitionHistory()
+{
+    highestRepetitionCount = 0u;
+    whitePositionsSize = 0u;
+    blackPositionsSize = 0u;
+}
+
+unsigned int Board::getHash()
+{
+    return hash.getHash();
 }

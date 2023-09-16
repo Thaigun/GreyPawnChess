@@ -9,11 +9,13 @@
     "build:engine-test": "cd engine/test && cmake -S . -B build && cmake --build build",
     "test:engine": "cd engine/test/build && ctest --output-on-failure",
     "test": "npm run build:engine-test && npm run test:engine",
-    "interactive": "npm run build && node interactive.js"
+    "interactive": "npm run build && node interactive.js",
+    "tournament": "npm run build && node tournament.mjs"
   },
   "dependencies": {
     "bindings": "^1.5.0",
-    "node-addon-api": "*"
+    "node-addon-api": "*",
+    "prompts": "^2.4.2"
   },
   "keywords": [
     "c++",

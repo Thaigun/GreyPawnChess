@@ -7,6 +7,7 @@
 #include <thread>
 #include "../engine/src/GreyPawnChess.h"
 #include "../engine/src/MonteCarloStrategy/MonteCarloStrategy.h"
+#include "../engine/src/RandomStrategy/RandomStrategy.h"
 #include "../engine/src/GameState.h"
 
 /**
@@ -26,6 +27,10 @@ public:
 		{
 			game = std::make_unique<MonteCarloStrategy>();
 		}
+		else if (stratName == "Random") 
+		{
+			game = std::make_unique<RandomStrategy>();
+		}
 		else
 		{
 			std::cerr << "Unknown strategy: " << stratName << std::endl;
@@ -41,7 +46,8 @@ public:
 				InstanceMethod("setup", &GreyPawnChessAddon::SetupGame),
 				InstanceMethod("updateGameState", &GreyPawnChessAddon::UpdateGameState),
 				InstanceMethod("startGame", &GreyPawnChessAddon::StartGame),
-				InstanceMethod("stopGame", &GreyPawnChessAddon::StopGame)
+				InstanceMethod("stopGame", &GreyPawnChessAddon::StopGame),
+				InstanceMethod("onGameEnd", &GreyPawnChessAddon::SetGameEndReasonCallback),
 			});
 
 		Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -150,7 +156,7 @@ private:
 	{
 		std::cout << "Start game" << std::endl;
 
-		tsfn = Napi::ThreadSafeFunction::New(
+		moveTsfn = Napi::ThreadSafeFunction::New(
 			info.Env(),
 			info[0].As<Napi::Function>(),
 			"threadedSolveFunction",
@@ -166,15 +172,37 @@ private:
 		game->startGame();
 	}
 
+	void SetGameEndReasonCallback(const Napi::CallbackInfo& info) {
+		gameEndTsfn = Napi::ThreadSafeFunction::New(
+			info.Env(),
+			info[0].As<Napi::Function>(),
+			"threadedEndFunction",
+			0,
+			1
+		);
+
+		game->setGameEndReasonCallback(std::bind(
+			&GreyPawnChessAddon::HandleGameEnd,
+			this, 
+			std::placeholders::_1
+		));
+	}
+
 	// Signals the game that it should stop and waits for it to stop.
 	void StopGame(const Napi::CallbackInfo& info) 
 	{
 		game->stopGame();
-		tsfn.Release();
+		moveTsfn.Release();
 	}
 
 	// Calls the JS callback.
 	void CallMoveCallback(Napi::Env env, Napi::Function jsCallback, std::string* value)
+	{
+		jsCallback.Call({Napi::String::New(env, *value)});
+		delete value;
+	}
+
+	void CallEndCallback(Napi::Env env, Napi::Function jsCallback, std::string* value)
 	{
 		jsCallback.Call({Napi::String::New(env, *value)});
 		delete value;
@@ -185,7 +213,7 @@ private:
 	{
 		std::string* moveStr = new std::string(move);
 		// Perform a blocking call
-		napi_status status = tsfn.BlockingCall(
+		napi_status status = moveTsfn.BlockingCall(
 			moveStr,
 		 	std::bind(
 				&GreyPawnChessAddon::CallMoveCallback, 
@@ -201,8 +229,28 @@ private:
 		}
 	}
 
+	void HandleGameEnd(const std::string& reason)
+	{
+		std::string* reasonStr = new std::string(reason);
+		napi_status status = gameEndTsfn.BlockingCall(
+			reasonStr,
+		 	std::bind(
+				&GreyPawnChessAddon::CallEndCallback, 
+				this, 
+				std::placeholders::_1, 
+				std::placeholders::_2, 
+				std::placeholders::_3
+			)
+		);
+		if (status != napi_ok)
+		{
+			// TODO: Handle error
+		}
+	}
+
 	// Thread safe reference to the JS callback function.
-	Napi::ThreadSafeFunction tsfn;
+	Napi::ThreadSafeFunction moveTsfn;
+	Napi::ThreadSafeFunction gameEndTsfn;
 
 	// The actual engine game.
 	// Change this to use different strategies!
