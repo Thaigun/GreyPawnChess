@@ -180,8 +180,12 @@ std::vector<Move> Board::findPossibleMoves() const
     Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
     Piece opponentPieceColor = ~currentPlayerColor & Piece::COLOR_MASK;
     char kingSquare = findSquareWithPiece(currentPlayerColor | Piece::KING);
+    assert(kingSquare >= 0 && kingSquare < 64 && "King must be on the board.");
 
     bool specialTreatmentSquares[64];
+    for (int i = 0; i < 63; i++)
+        specialTreatmentSquares[i] = false;
+
     specialTreatmentSquares[kingSquare] = true;
     char pinnedPieces[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
     MoveDirection directions[8] = {
@@ -213,7 +217,8 @@ std::vector<Move> Board::findPossibleMoves() const
             {
                 // Check if the opponent piece in the square can move to the king's square
                 // disregarding other pieces blocking.
-                if (posesXrayThreat(nextSquarePiece, -directions[i], stepCount))
+                MoveDirection oppositeDir = static_cast<MoveDirection>(-char(directions[i]));
+                if (posesXrayThreat(nextSquarePiece, oppositeDir, stepCount))
                 {
                     if (ownPieceSquare != -1)
                     {
@@ -270,11 +275,27 @@ std::vector<Move> Board::findPossibleMoves() const
         }
     }
 
+    // Moves of other pieces in the case of a check are not perfectly handled here. 
+    // Maybe collect the squares on the line between the king and the checking piece
+    // and use them to check move legality. That may cause trouble with en passant though.
+    std::vector<Move> candidateOtherMoves;
     for (char square = 0; square < 64; square++)
     {
         if (specialTreatmentSquares[square])
             continue;
-        findPseudoLegalMoves(square, playerInTurn, moves, false, false);
+            
+        findPseudoLegalMoves(square, playerInTurn, checkingPieces.size() > 0 ? candidateOtherMoves : moves, false, false);
+    }
+
+    if (candidateOtherMoves.size() > 0)
+    {
+        for (const Move& move : candidateOtherMoves)
+        {
+            if (checkMoveLegality(move))
+            {
+                moves.push_back(move);
+            }
+        }
     }
 
     return moves;
@@ -285,6 +306,7 @@ void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirect
     // Pinned piece can only move in the pin direction.
     Piece pinnedPiece = pieces[pinnedPieceSquare];
     Piece pinnedPieceType = pinnedPiece & ~Piece::COLOR_MASK;
+    MoveDirection oppositeDir = static_cast<MoveDirection>(-char(pinDirection));
     const bool isDiagonal = pinDirection == MoveDirection::NE || pinDirection == MoveDirection::SE || pinDirection == MoveDirection::SW || pinDirection == MoveDirection::NW;
     switch (pinnedPieceType)
     {
@@ -316,14 +338,14 @@ void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirect
             return;
         case Piece::ROOK:
             if (!isDiagonal)
-                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
             return;
         case Piece::QUEEN:
-            findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+            findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
             return;
         case Piece::BISHOP:
             if (isDiagonal)
-                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, oppositeDir }, moves);
             return;
         default:
             return;
@@ -371,12 +393,13 @@ std::vector<char> Board::findKnightThreats(char square, Piece byColor) const
 
 bool Board::posesXrayThreat(Piece piece, MoveDirection direction, int distance) const
 {
-    switch (piece & ~Piece::COLOR_MASK)
+    Piece pieceType = piece & ~Piece::COLOR_MASK;
+    Piece pieceColor = piece & Piece::COLOR_MASK;
+    switch (pieceType)
     {
     case Piece::PAWN:
         if (distance > 1)
             return false;
-        Piece pieceColor = piece & Piece::COLOR_MASK;
         if (pieceColor == Piece::WHITE)
             return direction == MoveDirection::NW || direction == MoveDirection::NE;
         return direction == MoveDirection::SW || direction == MoveDirection::SE;

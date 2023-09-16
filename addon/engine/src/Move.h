@@ -10,11 +10,6 @@ enum class MoveDirection : char
     NE = N+E, NW = N+W, SE=S+E, SW=S+W
 };
 
-MoveDirection operator-(MoveDirection direction)
-{
-    return static_cast<MoveDirection>(-static_cast<char>(direction));
-}
-
 struct Move
 {
     Move();
