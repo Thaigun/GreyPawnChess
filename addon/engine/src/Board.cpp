@@ -266,7 +266,7 @@ std::vector<Move> Board::findPossibleMoves() const
 
     std::vector<Move> candidateKingMoves;
     candidateKingMoves.reserve(8);
-    findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, checkingPieces.size() > 0);
+    findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, checkingPieces.size() == 0);
     for (const Move& move : candidateKingMoves)
     {
         if (checkKingMoveLegality(move))
@@ -320,7 +320,7 @@ void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirect
                     moves.push_back(Move(pinnedPieceSquare, takePieceSquare));
                 }
             }
-            else 
+            else if (pinDirection == MoveDirection::N || pinDirection == MoveDirection::S)
             {
                 // Pinned pawn can only move forward one step.
                 MoveDirection forward = playerInTurn == Color::WHITE ? MoveDirection::N : MoveDirection::S;
@@ -328,10 +328,12 @@ void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirect
                 if (pieces[nextSquare] == Piece::NONE)
                 {
                     moves.push_back(Move(pinnedPieceSquare, nextSquare));
-                    nextSquare = stepSquareInDirection(nextSquare, forward);
-                    if (pieces[nextSquare] == Piece::NONE)
+                    if (pinnedPieceSquare % 8 == 1 || pinnedPieceSquare % 8 == 6)
                     {
-                        moves.push_back(Move(pinnedPieceSquare, nextSquare));
+                        // Double step for a pawn?
+                        char nextnextSquare = stepSquareInDirection(nextSquare, forward);
+                        if (pieces[nextnextSquare] == Piece::NONE)
+                            moves.push_back(Move(pinnedPieceSquare, nextnextSquare));
                     }
                 }
             }
@@ -441,25 +443,7 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
 
 bool Board::checkKingMoveLegality(const Move& move) const
 {
-    Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
-    if (move.isCastling()) 
-    {
-        char startSqr = std::min(move.from[0], move.to[0]);
-        char endSqr = std::max(move.to[0], move.from[0]);
-        for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
-        {
-            if (isThreatened(stepSquare, opponent))
-            {
-                return false;
-            }
-        }
-        Board testBoard(*this);
-        testBoard.applyMove(move);
-        Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
-        char kingSquare = testBoard.findSquareWithPiece(currentPlayerColor | Piece::KING);
-        return (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn));
-    }
-    return !isThreatened(move.to[0], opponent);
+    return checkMoveLegality(move);
 }
 
 bool Board::checkMoveLegality(const Move& move) const
