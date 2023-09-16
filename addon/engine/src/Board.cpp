@@ -168,12 +168,6 @@ Board Board::buildFromFEN(const std::string& fenString)
 std::vector<Move> Board::findPossibleMoves() const
 {
     //PROFILE("Board::findPossibleMoves");
-    // std::vector<Move> pseudoMoves;
-    // pseudoMoves.reserve(64);
-    // for (char sqr = 0; sqr < (char)64; sqr++)
-    // {
-    //     findPseudoLegalMoves(sqr, playerInTurn, pseudoMoves, false, false);
-    // }
 
     std::vector<Move> moves;
     moves.reserve(64);
@@ -230,7 +224,14 @@ std::vector<Move> Board::findPossibleMoves() const
                         checkingPieces.push_back(nextSquare);
                     }
                 }
-                break;
+                // In case of an en passantable pawn a threat may come through two pieces horizontally, then don't break.
+                if (
+                    (nextSquarePiece & ~Piece::COLOR_MASK) != Piece::PAWN || 
+                    enPassant % 8 != nextSquare % 8
+                )
+                {
+                    break;
+                }
             }
             nextSquare = stepSquareInDirection(nextSquare, directions[i]);
             stepCount++;
@@ -253,48 +254,20 @@ std::vector<Move> Board::findPossibleMoves() const
         }
         return moves;
     }
-
-    for (int i = 0; i < 8; i++)
-    {
-        char pinnedPieceSquare = pinnedPieces[i];
-        if (pinnedPieceSquare == -1)
-            continue;
-
-        MoveDirection pinDirection = directions[i];
-        findPinnedPieceMoves(pinnedPieceSquare, pinDirection, moves);
-    }
-
-    std::vector<Move> candidateKingMoves;
-    candidateKingMoves.reserve(8);
-    findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, checkingPieces.size() == 0);
-    for (const Move& move : candidateKingMoves)
-    {
-        if (checkKingMoveLegality(move))
-        {
-            moves.push_back(move);
-        }
-    }
-
-    // Moves of other pieces in the case of a check are not perfectly handled here. 
-    // Maybe collect the squares on the line between the king and the checking piece
-    // and use them to check move legality. That may cause trouble with en passant though.
-    std::vector<Move> candidateOtherMoves;
+    
+    std::vector<Move> candidateMoves;
+    const bool isCheck = checkingPieces.size() > 0;
     for (char square = 0; square < 64; square++)
     {
-        if (specialTreatmentSquares[square])
-            continue;
-            
-        findPseudoLegalMoves(square, playerInTurn, checkingPieces.size() > 0 ? candidateOtherMoves : moves, false, false);
+        const bool isSpecialSquare = specialTreatmentSquares[square];
+        findPseudoLegalMoves(square, playerInTurn, (isSpecialSquare || isCheck) ? candidateMoves : moves, false, false);
     }
 
-    if (candidateOtherMoves.size() > 0)
+    for (const Move& move : candidateMoves)
     {
-        for (const Move& move : candidateOtherMoves)
+        if (checkMoveLegality(move))
         {
-            if (checkMoveLegality(move))
-            {
-                moves.push_back(move);
-            }
+            moves.push_back(move);
         }
     }
 
