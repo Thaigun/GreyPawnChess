@@ -34,6 +34,7 @@ void GreyPawnChess::startGame()
                 MTX_LOCK
                 while (moves.size() < gameState.moves.size())
                 {
+                    PROFILER_RESET();
                     const std::string newMove = gameState.moves[moves.size()];
                     Move move = board.constructMove(newMove);
                     applyMove(move);

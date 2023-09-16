@@ -5,6 +5,7 @@
 #include <climits>
 #include <iterator>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 
 #include "BoardFuncs.h"
@@ -166,23 +167,230 @@ Board Board::buildFromFEN(const std::string& fenString)
 
 std::vector<Move> Board::findPossibleMoves() const
 {
-    PROFILE("Board::findPossibleMoves");
-    std::vector<Move> pseudoMoves;
-    for (char sqr = 0; sqr < (char)64; sqr++)
-    {
-        findPseudoLegalMoves(sqr, playerInTurn, pseudoMoves, false, false);
-    }
+    //PROFILE("Board::findPossibleMoves");
+    // std::vector<Move> pseudoMoves;
+    // pseudoMoves.reserve(64);
+    // for (char sqr = 0; sqr < (char)64; sqr++)
+    // {
+    //     findPseudoLegalMoves(sqr, playerInTurn, pseudoMoves, false, false);
+    // }
 
     std::vector<Move> moves;
-    for (const Move& move : pseudoMoves)
+    moves.reserve(64);
+    Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+    Piece opponentPieceColor = ~currentPlayerColor & Piece::COLOR_MASK;
+    char kingSquare = findSquareWithPiece(currentPlayerColor | Piece::KING);
+
+    bool specialTreatmentSquares[64];
+    specialTreatmentSquares[kingSquare] = true;
+    char pinnedPieces[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+    MoveDirection directions[8] = {
+        MoveDirection::N,
+        MoveDirection::S,
+        MoveDirection::E,
+        MoveDirection::W,
+        MoveDirection::NE,
+        MoveDirection::SE,
+        MoveDirection::SW,
+        MoveDirection::NW
+    };
+    std::vector<char> checkingPieces = findKnightThreats(kingSquare, opponentPieceColor);
+    for (int i = 0; i < 8; i++)
     {
-        if (checkMoveLegality(move))
+        char ownPieceSquare = -1;
+        char nextSquare = stepSquareInDirection(kingSquare, directions[i]);
+        int stepCount = 1;
+        while (nextSquare != -1)
+        {
+            Piece nextSquarePiece = pieces[nextSquare];
+            if (areSameColor(currentPlayerColor, nextSquarePiece))
+            {
+                if (ownPieceSquare != -1)
+                    break;
+                ownPieceSquare = nextSquare;
+            }
+            else if (nextSquarePiece != Piece::NONE)
+            {
+                // Check if the opponent piece in the square can move to the king's square
+                // disregarding other pieces blocking.
+                if (posesXrayThreat(nextSquarePiece, -directions[i], stepCount))
+                {
+                    if (ownPieceSquare != -1)
+                    {
+                        pinnedPieces[i] = ownPieceSquare;
+                        specialTreatmentSquares[ownPieceSquare] = true;
+                    }
+                    else 
+                    {
+                        checkingPieces.push_back(nextSquare);
+                    }
+                }
+                break;
+            }
+            nextSquare = stepSquareInDirection(nextSquare, directions[i]);
+            stepCount++;
+        }
+    }
+
+    if (checkingPieces.size() > 1)
+    {
+        // King is in double check, only king moves are legal.
+        std::vector<Move> candidateKingMoves;
+        candidateKingMoves.reserve(8);
+        findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, false);
+        Color opponentColor = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE; 
+        for (const Move& move : candidateKingMoves)
+        {
+            if (!isThreatened(move.to[0], opponentColor))
+            {
+                moves.push_back(move);
+            }
+        }
+        return moves;
+    }
+
+    for (int i = 0; i < 8; i++)
+    {
+        char pinnedPieceSquare = pinnedPieces[i];
+        if (pinnedPieceSquare == -1)
+            continue;
+
+        MoveDirection pinDirection = directions[i];
+        findPinnedPieceMoves(pinnedPieceSquare, pinDirection, moves);
+    }
+
+    std::vector<Move> candidateKingMoves;
+    candidateKingMoves.reserve(8);
+    findPseudoKingMoves(kingSquare, playerInTurn, candidateKingMoves, checkingPieces.size() > 0);
+    for (const Move& move : candidateKingMoves)
+    {
+        if (checkKingMoveLegality(move))
         {
             moves.push_back(move);
         }
     }
 
+    for (char square = 0; square < 64; square++)
+    {
+        if (specialTreatmentSquares[square])
+            continue;
+        findPseudoLegalMoves(square, playerInTurn, moves, false, false);
+    }
+
     return moves;
+}
+
+void Board::findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirection, std::vector<Move>& moves) const
+{
+    // Pinned piece can only move in the pin direction.
+    Piece pinnedPiece = pieces[pinnedPieceSquare];
+    Piece pinnedPieceType = pinnedPiece & ~Piece::COLOR_MASK;
+    const bool isDiagonal = pinDirection == MoveDirection::NE || pinDirection == MoveDirection::SE || pinDirection == MoveDirection::SW || pinDirection == MoveDirection::NW;
+    switch (pinnedPieceType)
+    {
+        case Piece::PAWN:
+            if (isDiagonal)
+            {
+                // Pinned pawn can only move diagonally to take the piece pinning it.
+                char takePieceSquare = stepSquareInDirection(pinnedPieceSquare, pinDirection);
+                if (pieces[takePieceSquare] != Piece::NONE)
+                {
+                    moves.push_back(Move(pinnedPieceSquare, takePieceSquare));
+                }
+            }
+            else 
+            {
+                // Pinned pawn can only move forward one step.
+                MoveDirection forward = playerInTurn == Color::WHITE ? MoveDirection::N : MoveDirection::S;
+                char nextSquare = stepSquareInDirection(pinnedPieceSquare, forward);
+                if (pieces[nextSquare] == Piece::NONE)
+                {
+                    moves.push_back(Move(pinnedPieceSquare, nextSquare));
+                    nextSquare = stepSquareInDirection(nextSquare, forward);
+                    if (pieces[nextSquare] == Piece::NONE)
+                    {
+                        moves.push_back(Move(pinnedPieceSquare, nextSquare));
+                    }
+                }
+            }
+            return;
+        case Piece::ROOK:
+            if (!isDiagonal)
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+            return;
+        case Piece::QUEEN:
+            findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+            return;
+        case Piece::BISHOP:
+            if (isDiagonal)
+                findDirectionalPseudoMoves(pinnedPieceSquare, { pinDirection, -pinDirection }, moves);
+            return;
+        default:
+            return;
+    }
+}
+
+Piece Board::findPieceInDirection(char square, MoveDirection direction, char* pieceSquare) const
+{
+    char nextSquare = stepSquareInDirection(square, direction);
+    while (nextSquare != -1)
+    {
+        Piece nextSquarePiece = pieces[nextSquare];
+        if (nextSquarePiece != Piece::NONE)
+        {
+            *pieceSquare = nextSquare;
+            return nextSquarePiece;
+        }
+        nextSquare = stepSquareInDirection(nextSquare, direction);
+    }
+    *pieceSquare = -1;
+    return Piece::NONE;
+} 
+
+std::vector<char> Board::findKnightThreats(char square, Piece byColor) const
+{
+    char file = square % 8;
+    char rank = square / 8;
+    char rankOffsets[8] = {  1, 2,2,1,-1,-2,-2,-1 };
+    char fileOffsets[8] = { -2,-1,1,2, 2, 1,-1,-2 };
+    std::vector<char> threats;
+    for (int i = 0; i < 8; i++)
+    {
+        char moveRank = rank + rankOffsets[i];
+        char moveFile = file + fileOffsets[i];
+        if (moveRank > 7 || moveRank < 0 || moveFile < 0 || moveFile > 7)
+            continue;
+        
+        char moveSquare = 8 * moveRank + moveFile;
+        Piece targetSquarePiece = pieces[moveSquare];
+        if (targetSquarePiece == (Piece::KNIGHT | byColor))
+            threats.push_back(moveSquare);
+    }
+    return threats;
+}
+
+bool Board::posesXrayThreat(Piece piece, MoveDirection direction, int distance) const
+{
+    switch (piece & ~Piece::COLOR_MASK)
+    {
+    case Piece::PAWN:
+        if (distance > 1)
+            return false;
+        Piece pieceColor = piece & Piece::COLOR_MASK;
+        if (pieceColor == Piece::WHITE)
+            return direction == MoveDirection::NW || direction == MoveDirection::NE;
+        return direction == MoveDirection::SW || direction == MoveDirection::SE;
+    case Piece::ROOK:
+        return direction == MoveDirection::N || direction == MoveDirection::S || direction == MoveDirection::E || direction == MoveDirection::W;
+    case Piece::QUEEN:
+        return true;
+    case Piece::BISHOP:
+        return direction == MoveDirection::NE || direction == MoveDirection::SE || direction == MoveDirection::SW || direction == MoveDirection::NW;
+    case Piece::KING:
+        return distance == 1;
+    default:
+        return false;
+    }
 }
 
 char Board::findSquareWithPiece(Piece piece) const
@@ -208,6 +416,29 @@ void Board::findLegalMovesForSquare(char square, std::vector<Move> &moveList) co
     }
 }
 
+bool Board::checkKingMoveLegality(const Move& move) const
+{
+    Color opponent = playerInTurn == Color::WHITE ? Color::BLACK : Color::WHITE;
+    if (move.isCastling()) 
+    {
+        char startSqr = std::min(move.from[0], move.to[0]);
+        char endSqr = std::max(move.to[0], move.from[0]);
+        for (char stepSquare = startSqr; stepSquare <= endSqr; stepSquare++)
+        {
+            if (isThreatened(stepSquare, opponent))
+            {
+                return false;
+            }
+        }
+        Board testBoard(*this);
+        testBoard.applyMove(move);
+        Piece currentPlayerColor = playerInTurn == Color::WHITE ? Piece::WHITE : Piece::BLACK;
+        char kingSquare = testBoard.findSquareWithPiece(currentPlayerColor | Piece::KING);
+        return (!testBoard.isThreatened(kingSquare, testBoard.playerInTurn));
+    }
+    return !isThreatened(move.to[0], opponent);
+}
+
 bool Board::checkMoveLegality(const Move& move) const
 {
     PROFILE("Board::checkMoveLegality");
@@ -224,7 +455,6 @@ bool Board::checkMoveLegality(const Move& move) const
             }
         }
     }
-
     Board testBoard(*this);
     testBoard.applyMove(move);
     // Check if the current player in turn is in check if the move was applied.
@@ -431,7 +661,7 @@ void Board::findPseudoCastlingMoves(char square, Color player, std::vector<Move>
     }
 }
 
-void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& moves) const
+void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& moves, bool includeCastling) const
 {
     std::vector<MoveDirection> directions {
         MoveDirection::N,
@@ -444,7 +674,10 @@ void Board::findPseudoKingMoves(char square, Color player, std::vector<Move>& mo
         MoveDirection::NW
     };
     findDirectionalPseudoMoves(square, directions, moves, 1);
-    findPseudoCastlingMoves(square, player, moves);
+    if (includeCastling)
+    {
+        findPseudoCastlingMoves(square, player, moves);
+    }
 }
 
 void Board::findPseudoBishopMoves(char square, std::vector<Move>& moves) const 
@@ -510,7 +743,7 @@ void Board::findPseudoLegalMoves(char square, Color forPlayer, std::vector<Move>
 
 bool Board::isThreatened(char square, Color byPlayer) const
 {
-    PROFILE("Board::isThreatened");
+    // PROFILE("Board::isThreatened");
     // Threats are symmetric: if a knight in this square would threaten a knight of the other player,
     // the other knight would also threaten this square.
     // Hence, for each piece typee check if such piece in this square would threaten a similar piece of the other player.

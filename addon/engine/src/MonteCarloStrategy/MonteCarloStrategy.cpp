@@ -15,9 +15,11 @@ void MonteCarloStrategy::tickComputation()
 void MonteCarloStrategy::applyMoveToStrategy(const Move& move)
 {
     monteCarloTree = std::move(monteCarloTree.getNodeForMove(move));
+    monteCarloTree.printStats();
 }
 
 Move MonteCarloStrategy::getBestMove()
 {
+    monteCarloTree.printStats();
     return monteCarloTree.highestWinrateMove();
 }

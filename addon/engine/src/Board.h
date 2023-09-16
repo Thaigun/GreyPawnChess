@@ -16,7 +16,8 @@ public:
     static Board buildFromFEN(const std::string& fenString);
 
     std::vector<Move> findPossibleMoves() const;
-    Move constructMove(const std::string& moveUCI) const;
+    void findPinnedPieceMoves(char pinnedPieceSquare, MoveDirection pinDirection, std::vector<Move> &moves) const;
+    Move constructMove(const std::string &moveUCI) const;
     void applyMove(const Move& move);
     void applyMove(const std::string& moveUCI);
     Piece getSquare(char square) const;
@@ -38,7 +39,11 @@ private:
 
     void updateCastlingRights();
     void findLegalMovesForSquare(char square, std::vector<Move>& moveList) const;
-    bool checkMoveLegality(const Move& move) const;
+    bool checkKingMoveLegality(const Move& move) const;
+    Piece findPieceInDirection(char square, MoveDirection direction, char *pieceSquare) const;
+    std::vector<char> findKnightThreats(char square, Piece byColor) const;
+    bool posesXrayThreat(Piece piece, MoveDirection direction, int distance) const;
+    bool checkMoveLegality(const Move &move) const;
     char findSquareWithPiece(Piece piece) const;
     bool isThreatened(char square, Color byPlayer) const;
     bool hasPawnThreat(char square, Color byPlayer) const;
@@ -55,7 +60,7 @@ private:
     void findPseudoQueenMoves(char square, std::vector<Move>& moves) const;
     void findPseudoBishopMoves(char square, std::vector<Move>& moves) const;
     void findPseudoCastlingMoves(char square, Color player, std::vector<Move>& moves) const;
-    void findPseudoKingMoves(char square, Color player, std::vector<Move>& moves) const;
+    void findPseudoKingMoves(char square, Color player, std::vector<Move>& moves, bool includeCastling = true) const;
     void findPseudoKnightMoves(char square, std::vector<Move>& moves) const;
     void findDirectionalPseudoMoves(char square, const std::vector<MoveDirection>& directions, std::vector<Move>& moves, int maxSteps = 1000000) const;
 
