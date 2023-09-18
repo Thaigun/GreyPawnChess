@@ -332,7 +332,7 @@ TEST(BoardTest, DetectRepetitionAfterFENInit)
 // https://www.chessprogramming.org/Perft_Results
 TEST(BoardTest, LegalMoves1) 
 {
-	const Board board = Board::buildFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	const Board board;
 	unsigned int expectedMoveCounts[6] = {
 		1u, 20u, 400u, 8902u, 197281u, 4865609u
 	};
